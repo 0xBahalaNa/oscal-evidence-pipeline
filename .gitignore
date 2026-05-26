@@ -1,0 +1,66 @@
+# Byte-compiled / optimized / DLL files
+# Python generates these automatically when importing modules.
+# They're machine-specific and should never be committed.
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+# Trestle and oscal-pydantic pull substantial dependency trees.
+# These directories should never be committed.
+venv/
+.venv/
+env/
+
+# Environment and secret files
+# Audit-tool integrations may need API keys or AWS profiles at runtime.
+.env
+*.env
+.env.*
+*.secrets
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# pytest cache
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+coverage.xml
+
+# Type-checker caches
+.mypy_cache/
+.ruff_cache/
+.pyright/
+
+# OSCAL pipeline runtime outputs
+# Timestamped SAR JSON files produced by the pipeline.
+# Committed examples live under examples/ and are NOT ignored.
+evidence/
+audit-outputs/
+
+# Trestle workspace artifacts
+# Trestle uses a workspace directory pattern when assembling OSCAL docs.
+# The workspace is regeneratable; intermediate split files are not.
+.trestle/
+trestle-workspace/
+
+# Local input fixtures used while developing
+# Real upstream audit-tool outputs may contain account IDs / ARNs.
+local-inputs/
