@@ -99,6 +99,7 @@ See `examples/sample-assessment-results.json` (lands with the first implementati
 
 - POA&M generation from FAIL findings (v1.1)
 - Component Definition generation per source audit tool (v1.2)
+- AI evidence module — emit AI-specific evidence (model lineage, training data audit logs, bias testing results) as OSCAL observations; connects this pipeline to the AI portfolio layer (Project 10 AI Risk Assessment, Project 12 AI Controls Mappings) (v1.3)
 - SSP skeleton generation from a Profile + Component Definition set (v2.0)
 - KSI metric extraction from cross-run SAR diffs (v2.0)
 - S3 archival of SAR JSON with Object Lock for CJIS AU-6 1-year retention
