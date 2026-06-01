@@ -192,7 +192,8 @@ The pipeline doesn't compute KSIs itself — that's downstream — but it produc
 | **v1.0** | SAR generation from `secret-scanner` (working end-to-end), adapter stubs for the four other source tools, validated SAR JSON output, CLI entry point, sample evidence committed under `examples/` | sprint-month-4 (June 2026) |
 | **v1.1** | POA&M generation from FAIL findings, S3 archival with Object Lock for CJIS AU-6 retention | sprint-month-5 (July 2026) |
 | **v1.2** | Component Definition generation per source audit tool — each tool becomes an OSCAL Component the downstream SSP can `import-component` | sprint-month-6 (Aug 2026) |
-| **v2.0** | SSP skeleton generation from a Profile + Component Definition set, KSI metric extraction from cross-run SAR diffs | sprint-month-7+ |
+| **v1.3** | AI evidence module — emit AI-specific evidence (model lineage, training data audit logs, bias testing results) as OSCAL observations / components; bridges this pipeline to the AI portfolio layer (Project 10 AI Risk Assessment, Project 12 AI Controls Mappings) | sprint-month-7 (Sep 2026), paired with the AI portfolio sprint |
+| **v2.0** | SSP skeleton generation from a Profile + Component Definition set, KSI metric extraction from cross-run SAR diffs | sprint-month-8+ |
 
 ## 9. Non-Goals (Explicit)
 
