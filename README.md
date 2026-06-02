@@ -78,6 +78,31 @@ See `ARCHITECTURE.md` for the full pipeline design, library rationale (Trestle +
 
 Detailed `requirements.txt` lands with the first implementation issue.
 
+## Development Setup
+
+The package scaffold (`oscal_pipeline/`, `tests/`, `examples/`, pinned `requirements.txt`, `pyproject.toml`) lands in Issue #1. To work on the pipeline locally:
+
+```bash
+# Clone and enter the repo
+git clone https://github.com/0xBahalaNa/oscal-evidence-pipeline.git
+cd oscal-evidence-pipeline
+
+# Create an isolated virtual environment (Python 3.11+)
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install the package in editable mode with dev extras (pytest + coverage)
+pip install -e ".[dev]"
+
+# Smoke-test that the package imports and exposes a version
+python -c "import oscal_pipeline; print(oscal_pipeline.__version__)"
+
+# Run the test suite
+pytest
+```
+
+The pinned dependency tree lives in `requirements.txt` — it's the **CM-3 artifact** for this repo: the exact versions used to produce any given OSCAL SAR, recorded once and version-controlled. The looser compatible-release pins in `pyproject.toml` define the contract for downstream installers; the two files together separate "what the package needs" from "what we shipped against."
+
 ## Usage
 
 > Phase 1 MVP. CLI surface subject to change before v1.0 tag.
