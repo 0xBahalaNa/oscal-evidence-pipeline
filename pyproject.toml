@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oscal-pipeline"
+version = "0.1.0"
+description = "Transform compliance audit-tool output into OSCAL Assessment Results (SAR) JSON for FedRAMP 20x and CJIS v6.0 evidence packages."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "0xBahalaNa" }]
+keywords = ["oscal", "fedramp", "fedramp-20x", "cjis", "compliance", "grc"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+]
+
+# Runtime dependencies use compatible-release pins (~=) where the
+# upstream follows SemVer, so downstream installers can absorb patch
+# updates without re-resolving the universe. Exact pins for reproducible
+# builds live in requirements.txt — that file is the CM-3 (configuration
+# change control) artifact for this project.
+#
+# oscal-pydantic ships a single CalVer release (2023.3.21), so the
+# compatible-release operator (~=) cannot apply; pin it exactly here too
+# and revisit if upstream resumes a release cadence.
+dependencies = [
+    "compliance-trestle~=4.0",
+    "oscal-pydantic==2023.3.21",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest~=8.3",
+    "pytest-cov~=6.0",
+]
+
+# The hyphenated console-script name follows Unix convention (cf. ``trestle``,
+# ``oscal-cli``); the underscored module path is required by Python's import
+# system. The asymmetry is intentional.
+[project.scripts]
+oscal-pipeline = "oscal_pipeline.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/0xBahalaNa/oscal-evidence-pipeline"
+Issues = "https://github.com/0xBahalaNa/oscal-evidence-pipeline/issues"
+Architecture = "https://github.com/0xBahalaNa/oscal-evidence-pipeline/blob/main/ARCHITECTURE.md"
+
+[tool.setuptools.packages.find]
+include = ["oscal_pipeline*"]
+exclude = ["tests*", "examples*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=oscal_pipeline --cov-report=term-missing"
+python_files = ["test_*.py"]
