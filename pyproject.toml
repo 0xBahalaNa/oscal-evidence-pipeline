@@ -58,6 +58,15 @@ Architecture = "https://github.com/0xBahalaNa/oscal-evidence-pipeline/blob/main/
 include = ["oscal_pipeline*"]
 exclude = ["tests*", "examples*"]
 
+# PEP 561 — ship the ``py.typed`` marker inside the installed wheel so
+# downstream consumers' type-checkers (mypy, pyright) honor the typed
+# Adapter Protocol and registry surface. Without this marker the
+# package's ``[tool.mypy] strict = true`` investment is invisible to
+# anyone who installs the wheel; their checker treats every imported
+# symbol as ``Any``.
+[tool.setuptools.package-data]
+oscal_pipeline = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=oscal_pipeline --cov-report=term-missing"
