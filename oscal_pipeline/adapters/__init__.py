@@ -19,6 +19,7 @@ from oscal_pipeline.adapters.base import Adapter
 from oscal_pipeline.adapters.registry import (
     REGISTRY,
     AdapterAlreadyRegistered,
+    AdapterMatchError,
     MultipleAdaptersMatch,
     find_adapter,
     register_adapter,
@@ -28,6 +29,7 @@ __all__ = [
     "REGISTRY",
     "Adapter",
     "AdapterAlreadyRegistered",
+    "AdapterMatchError",
     "MultipleAdaptersMatch",
     "find_adapter",
     "register_adapter",
