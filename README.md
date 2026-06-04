@@ -6,6 +6,11 @@ Built on **IBM Compliance Trestle** (orchestration / CLI workflow) and **oscal-p
 
 > **Status:** Phase 1 in development. v1.0 ships SAR generation from existing portfolio audit tools. POA&M (v1.1) and Component Definitions (v1.2) follow.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/oscal-evidence-pipeline-dark.png">
+  <img alt="OSCAL Evidence Pipeline architecture: five Python audit tools feed the pipeline (IBM Compliance Trestle for orchestration, oscal-pydantic for typed model transform), which validates against the NIST OSCAL JSON Schema before emitting OSCAL SAR JSON for two consumers — FedRAMP 20x assessors (CA-7 continuous monitoring) and CJIS v6.0 weekly review (AU-6, 1-year retention)." src="assets/oscal-evidence-pipeline-light.png">
+</picture>
+
 ## Why This Exists
 
 The compliance audit world is moving from Word/PDF evidence to **machine-readable evidence**. FedRAMP 20x makes OSCAL the canonical format. Once your audit tools emit OSCAL Assessment Results instead of plaintext logs, an assessor — or, more importantly, a continuous-monitoring pipeline — can consume them without manual transcription.
