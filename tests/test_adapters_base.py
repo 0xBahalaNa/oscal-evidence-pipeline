@@ -1,17 +1,21 @@
 """Tests for the Adapter Protocol and registry (issue #2).
 
-Covers the six acceptance behaviors:
+Covers Protocol conformance (callability + arity, not just attribute
+existence — ``runtime_checkable`` alone is shallow), decorator-based
+registration including the "returns the class unchanged" promise, the
+two registry-level loud-failure policies (``AdapterAlreadyRegistered``,
+``MultipleAdaptersMatch``), the dispatcher's exception-wrapping policy
+(``AdapterMatchError``), and the strict-bool requirement on
+``matches()``.
 
-1. Protocol conformance via ``isinstance`` (runtime_checkable).
-2. Decorator-based registration appends an instance to ``REGISTRY``.
-3. Double registration raises ``AdapterAlreadyRegistered``.
-4. Dispatch returns the matching adapter instance.
-5. Dispatch returns ``None`` when no adapter claims the input.
-6. Dispatch raises ``MultipleAdaptersMatch`` on ambiguity.
+The ``_isolated_registry`` autouse fixture lives in ``conftest.py`` so
+every test module in the suite gets registry isolation without
+redeclaring it.
 """
 
 from __future__ import annotations
 
+import inspect
 from typing import TYPE_CHECKING
 
 import pytest
@@ -30,40 +34,35 @@ if TYPE_CHECKING:
     from oscal_pydantic.assessment_results import Observation
 
 
-@pytest.fixture(autouse=True)
-def _isolated_registry():
-    """Snapshot / restore ``REGISTRY`` around each test.
-
-    Once concrete adapters auto-register on import, we want isolation
-    without clobbering production state — snapshot before, restore
-    after. ``autouse=True`` so every test in this module gets the
-    isolation without an explicit fixture argument.
-    """
-    snapshot = dict(REGISTRY)
-    REGISTRY.clear()
-    yield
-    REGISTRY.clear()
-    REGISTRY.update(snapshot)
-
-
 class _StubAdapter:
     """Minimal adapter shape used by the conformance and registry tests."""
 
-    def matches(self, raw: dict) -> bool:
+    def matches(self, raw: dict[str, object]) -> bool:
         return raw.get("source_tool") == "stub"
 
-    def transform(self, raw: dict) -> list[Observation]:
+    def transform(self, raw: dict[str, object]) -> list[Observation]:
         return []
 
 
 def test_stub_satisfies_adapter_protocol_at_runtime() -> None:
-    assert isinstance(_StubAdapter(), Adapter)
+    stub = _StubAdapter()
+    # ``runtime_checkable`` only verifies attribute *names* exist — non-callable
+    # attributes with the right names also pass. Add callability + arity
+    # assertions so this test fails for actually-broken stub shapes.
+    assert isinstance(stub, Adapter)
+    assert callable(stub.matches)
+    assert callable(stub.transform)
+    assert list(inspect.signature(stub.matches).parameters) == ["raw"]
+    assert list(inspect.signature(stub.transform).parameters) == ["raw"]
 
 
 def test_register_adapter_inserts_instance_into_registry() -> None:
-    register_adapter("stub")(_StubAdapter)
+    result = register_adapter("stub")(_StubAdapter)
     assert "stub" in REGISTRY
     assert isinstance(REGISTRY["stub"], _StubAdapter)
+    # The decorator's docstring promises it returns the class unchanged
+    # so adapter modules can keep using the name after decoration.
+    assert result is _StubAdapter
 
 
 def test_register_adapter_raises_on_duplicate_key() -> None:
@@ -85,10 +84,10 @@ def test_find_adapter_returns_none_when_no_match() -> None:
 
 def test_find_adapter_raises_when_multiple_adapters_claim_input() -> None:
     class _GreedyAdapter:
-        def matches(self, raw: dict) -> bool:
+        def matches(self, raw: dict[str, object]) -> bool:
             return True  # claims every input
 
-        def transform(self, raw: dict) -> list[Observation]:
+        def transform(self, raw: dict[str, object]) -> list[Observation]:
             return []
 
     register_adapter("stub")(_StubAdapter)
@@ -115,10 +114,10 @@ def test_register_adapter_error_names_both_existing_and_rejected_class() -> None
     register_adapter("stub")(_StubAdapter)
 
     class _OtherAdapter:
-        def matches(self, raw: dict) -> bool:
+        def matches(self, raw: dict[str, object]) -> bool:
             return False
 
-        def transform(self, raw: dict) -> list[Observation]:
+        def transform(self, raw: dict[str, object]) -> list[Observation]:
             return []
 
     with pytest.raises(AdapterAlreadyRegistered) as exc_info:
@@ -132,10 +131,10 @@ def test_register_adapter_error_names_both_existing_and_rejected_class() -> None
 
 def test_find_adapter_wraps_matches_exceptions_with_adapter_context() -> None:
     class _BrokenAdapter:
-        def matches(self, raw: dict) -> bool:
+        def matches(self, raw: dict[str, object]) -> bool:
             return raw["nonexistent_key"] == "value"  # raises KeyError
 
-        def transform(self, raw: dict) -> list[Observation]:
+        def transform(self, raw: dict[str, object]) -> list[Observation]:
             return []
 
     register_adapter("broken")(_BrokenAdapter)
@@ -152,12 +151,12 @@ def test_find_adapter_wraps_matches_exceptions_with_adapter_context() -> None:
 
 def test_find_adapter_treats_truthy_non_bool_as_no_match() -> None:
     class _TruthyNonBoolAdapter:
-        def matches(self, raw: dict) -> bool:
+        def matches(self, raw: dict[str, object]) -> bool:
             # Buggy: returns a truthy string instead of a strict bool.
             # The dispatcher must NOT silently dispatch on truthy values.
             return raw.get("source_tool", "")  # type: ignore[return-value]
 
-        def transform(self, raw: dict) -> list[Observation]:
+        def transform(self, raw: dict[str, object]) -> list[Observation]:
             return []
 
     register_adapter("truthy-bug")(_TruthyNonBoolAdapter)
@@ -167,17 +166,17 @@ def test_find_adapter_treats_truthy_non_bool_as_no_match() -> None:
 
 def test_multiple_adapters_match_error_includes_keys_and_class_names() -> None:
     class _GreedyA:
-        def matches(self, raw: dict) -> bool:
+        def matches(self, raw: dict[str, object]) -> bool:
             return True
 
-        def transform(self, raw: dict) -> list[Observation]:
+        def transform(self, raw: dict[str, object]) -> list[Observation]:
             return []
 
     class _GreedyB:
-        def matches(self, raw: dict) -> bool:
+        def matches(self, raw: dict[str, object]) -> bool:
             return True
 
-        def transform(self, raw: dict) -> list[Observation]:
+        def transform(self, raw: dict[str, object]) -> list[Observation]:
             return []
 
     register_adapter("greedy-a")(_GreedyA)
