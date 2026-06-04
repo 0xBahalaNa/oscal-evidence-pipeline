@@ -40,6 +40,7 @@ dependencies = [
 dev = [
     "pytest~=8.3",
     "pytest-cov~=6.0",
+    "mypy~=1.13",
 ]
 
 # The hyphenated console-script name follows Unix convention (cf. ``trestle``,
@@ -61,3 +62,19 @@ exclude = ["tests*", "examples*"]
 testpaths = ["tests"]
 addopts = "--cov=oscal_pipeline --cov-report=term-missing"
 python_files = ["test_*.py"]
+
+# Strict on our code, tolerant of third-party stubs. ``oscal-pydantic``
+# is the only third-party type source we tolerate as opaque — its frozen
+# 2023.3.21 release fails to import on Python 3.14, which makes mypy's
+# stub-following also fail; ``ignore_missing_imports`` + ``follow_imports
+# = "skip"`` keeps strict mode on our own code without dragging the
+# broken upstream into every type-check.
+[tool.mypy]
+files = ["oscal_pipeline"]
+strict = true
+python_version = "3.11"
+
+[[tool.mypy.overrides]]
+module = "oscal_pydantic.*"
+ignore_missing_imports = true
+follow_imports = "skip"

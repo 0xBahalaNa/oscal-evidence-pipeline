@@ -64,7 +64,11 @@ By keeping audit tools focused on detection (their own native JSON) and centrali
 
 **Detection strategy:** Each upstream tool's JSON has a stable top-level structure. For example, `secret-scanner --output json` produces `{"scan_metadata": {...}, "findings": [...], "summary": {...}}`. Schema fingerprinting matches on the top-level key set rather than requiring upstream tools to add a `source_tool` field — keeps the upstream tools loose-coupled.
 
-**Failure mode:** Unknown schema → log warning, skip file, continue. The pipeline never fails the whole run on a single unrecognized input.
+**Failure modes:**
+
+- **Unknown schema (no adapter claims the input):** log warning, skip file, continue. The pipeline never fails the whole run on an unrecognized input.
+- **Ambiguous schema (two or more adapters claim the input):** raise `MultipleAdaptersMatch` and halt the file. Silent ambiguity in evidence production becomes a late-stage CJIS AU-6 / FedRAMP 20x audit failure; we prefer to fail at ingest so the operator can fix the offending adapter's fingerprint.
+- **Adapter `matches()` raises:** raise `AdapterMatchError` wrapping the original exception with the offending adapter's registry key and class name. A broken adapter must not silently mask a correct one downstream — that's the same silent-ambiguity failure mode the multi-match policy guards against.
 
 ### Stage 3 — Transformation
 
@@ -73,10 +77,13 @@ By keeping audit tools focused on detection (their own native JSON) and centrali
 **Per-tool adapter pattern:** One adapter module per upstream tool (`adapters/secret_scanner.py`, `adapters/s3_audit.py`, etc.). Each adapter implements a common interface:
 
 ```python
+@runtime_checkable
 class Adapter(Protocol):
-    def matches(self, raw: dict) -> bool: ...
-    def transform(self, raw: dict) -> list[OscalObservation]: ...
+    def matches(self, raw: dict[str, object]) -> bool: ...
+    def transform(self, raw: dict[str, object]) -> list[Observation]: ...
 ```
+
+`dict[str, object]` (not `dict[str, Any]`) is deliberate: it forces adapter authors to narrow with `isinstance` before indexing into `raw`, so upstream-schema drift surfaces as a clear type-check error rather than as silently-wrong observations. `@runtime_checkable` enables `isinstance(obj, Adapter)` for registry-time sanity checks — the runtime check is shallow (name-existence only), so signature-level enforcement falls to mypy at static-check time.
 
 This Protocol-based design keeps adding a new upstream tool to a single file under `adapters/`. It also makes the pipeline testable per-adapter without spinning up Trestle.
 
@@ -141,7 +148,7 @@ Trade-off: Trestle's models are heavyweight and the transformation extension poi
 
 ### oscal-pydantic alone
 
-`oscal-pydantic` is a pure Python typed model library generated from the OSCAL JSON Schema. Every OSCAL object is a Pydantic model with type hints and validation. Transformation code looks like ordinary Python: `OscalObservation(uuid=..., title=..., ...)`.
+`oscal-pydantic` is a pure Python typed model library generated from the OSCAL JSON Schema. Every OSCAL object is a Pydantic model with type hints and validation. Transformation code looks like ordinary Python: `Observation(uuid=..., title=..., ...)`.
 
 Trade-off: No assembly choreography. No CLI. No `trestle split` workflow for managing large SSPs by file. Re-implementing those is significant scope.
 
