@@ -9,6 +9,8 @@
 
 compliance-trestle==4.0.3
 oscal-pydantic==2023.3.21
+# oscal-pydantic 2023.3.21 requires pydantic v1 Field(regex=...); v2 breaks import.
+pydantic>=1.10.13,<2
 pytest==8.4.2
 pytest-cov==6.3.0
 mypy==1.20.2
