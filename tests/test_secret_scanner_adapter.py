@@ -71,7 +71,13 @@ def test_observation_uuid_derivation(adapter: SecretScannerAdapter) -> None:
     assert first_obs.uuid == expected
     assert first_obs.description == "AWS Access Key ID"
     prop_names = {p.name for p in first_obs.props or []}
-    assert prop_names == {"severity", "file_path", "line_number", "pattern_matched"}
+    assert prop_names == {
+        "source-tool",
+        "severity",
+        "file_path",
+        "line_number",
+        "pattern_matched",
+    }
     assert first_obs.subjects is not None
     assert first_obs.subjects[0].title == "bad-config.json"
 

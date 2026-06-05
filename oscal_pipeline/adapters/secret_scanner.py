@@ -27,6 +27,15 @@ from oscal_pipeline.adapters.registry import register_adapter
 from oscal_pipeline.adapters.result import TransformResult
 from oscal_pipeline.adapters.uuid import deterministic_uuid
 
+# Source-tool name used in two places: as the registry key (via
+# @register_adapter) and as the value of the "source-tool" property
+# emitted on every Observation. Defined once here so the two stay in
+# lockstep — AU-3 ("content of audit records") requires every
+# observation to identify its source tool, and a divergence between the
+# registry key and the property value would silently mis-attribute
+# evidence in a merged multi-adapter SAR.
+_ADAPTER_NAME = "secret-scanner"
+
 _FINGERPRINT_KEYS = frozenset({"scan_metadata", "findings", "summary"})
 
 _FAIL_SEVERITIES = frozenset({"CRITICAL", "HIGH"})
@@ -40,21 +49,72 @@ class _Outcome(Enum):
     PASS = "pass"
 
 
-def _classify_severity(severity: object) -> _Outcome:
-    if not isinstance(severity, str):
-        return _Outcome.FAIL
-    normalized = severity.upper()
+class UnknownSeverityError(ValueError):
+    """Raised when ``secret-scanner`` emits a severity outside the known vocabulary.
+
+    Per the repo's loud-failure-on-ambiguity policy (see the module
+    docstring of ``adapters/registry.py``), an evidence pipeline must
+    fail at ingest rather than silently emit a default-categorized
+    Finding. An unknown or wrong-typed severity from upstream is an
+    evidence-contract regression the operator must fix at the source;
+    silently mapping it to FAIL would emit a ``not-satisfied`` Finding
+    against the wrong control mappings and ship that into the SAR —
+    exactly the silent-incomplete-evidence failure mode CJIS AU-6
+    weekly review and FedRAMP 20x continuous monitoring catch *late*.
+    """
+
+
+def _require_severity(data: dict[str, object], index: int) -> tuple[str, _Outcome]:
+    """Validate the ``severity`` field and return ``(severity_str, outcome)``.
+
+    Raises :class:`UnknownSeverityError` on non-string severity or on a
+    string value outside the documented vocabulary
+    (``INFO`` / ``LOW`` / ``MEDIUM`` / ``HIGH`` / ``CRITICAL``). Returning
+    the validated string alongside the classified outcome means the
+    caller can populate the ``severity`` property without a second
+    isinstance narrow — the helper is the single source of truth for
+    "this severity is known and well-formed."
+    """
+    raw = data.get("severity")
+    if not isinstance(raw, str):
+        raise UnknownSeverityError(
+            f"findings[{index}].severity must be a string; "
+            f"got {type(raw).__name__}"
+        )
+    normalized = raw.upper()
     if normalized in _PASS_SEVERITIES:
-        return _Outcome.PASS
+        return raw, _Outcome.PASS
     if normalized in _WARN_SEVERITIES:
-        return _Outcome.WARN
-    return _Outcome.FAIL
+        return raw, _Outcome.WARN
+    if normalized in _FAIL_SEVERITIES:
+        return raw, _Outcome.FAIL
+    known = sorted(_PASS_SEVERITIES | _WARN_SEVERITIES | _FAIL_SEVERITIES)
+    raise UnknownSeverityError(
+        f"findings[{index}].severity unknown: {raw!r}; "
+        f"expected one of {known}"
+    )
 
 
 def _parse_timestamp(raw: object) -> datetime:
     if not isinstance(raw, str):
-        raise ValueError(f"scan_metadata.timestamp must be a string; got {type(raw).__name__}")
-    return datetime.fromisoformat(raw)
+        raise ValueError(
+            f"scan_metadata.timestamp must be a string; got {type(raw).__name__}"
+        )
+    dt = datetime.fromisoformat(raw)
+    # OSCAL's ``collected`` field requires a TZ-aware ISO 8601 timestamp
+    # per the NIST OSCAL JSON Schema. ``oscal-pydantic==2023.3.21`` does
+    # not enforce this at construction time (its dateTime regex is
+    # commented out), so a naive timestamp passes local tests and only
+    # fails at the schema-validation gate — late discovery. Raise here
+    # so the failure surfaces at ingest, where the operator can fix the
+    # source-tool output. See CLAUDE.md: "Every emitted SAR must
+    # validate against the NIST OSCAL schema before commit."
+    if dt.tzinfo is None:
+        raise ValueError(
+            f"scan_metadata.timestamp must be TZ-aware (ISO 8601 with "
+            f"offset, e.g. '...T12:00:00+00:00'); got naive {raw!r}"
+        )
+    return dt
 
 
 def _prop(name: str, value: str) -> Property:
@@ -82,8 +142,15 @@ def _require_str(data: dict[str, object], key: str, index: int) -> str:
 
 def _require_int(data: dict[str, object], key: str, index: int) -> int:
     value = data.get(key)
-    if not isinstance(value, int):
-        raise ValueError(f"findings[{index}].{key} must be an integer; got {type(value).__name__}")
+    # ``bool`` is a subclass of ``int`` in Python, so a plain
+    # ``isinstance(value, int)`` would silently accept ``True`` / ``False``
+    # and let boolean garbage flow into props as the literal string
+    # ``"True"`` / ``"False"``. Exclude ``bool`` explicitly so the
+    # type-mismatch surfaces here at ingest, not later in the SAR.
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(
+            f"findings[{index}].{key} must be an integer; got {type(value).__name__}"
+        )
     return value
 
 
@@ -104,7 +171,7 @@ def _require_control_ids(data: dict[str, object], index: int) -> list[str]:
     return ids
 
 
-@register_adapter("secret-scanner")
+@register_adapter(_ADAPTER_NAME)
 class SecretScannerAdapter:
     """Transform secret-scanner JSON into OSCAL observations and findings."""
 
@@ -131,7 +198,7 @@ class SecretScannerAdapter:
             line_number = _require_int(row, "line_number", index)
             finding_type = _require_str(row, "finding_type", index)
             pattern_matched = _require_str(row, "pattern_matched", index)
-            severity = row.get("severity")
+            severity, outcome = _require_severity(row, index)
             control_ids = _require_control_ids(row, index)
 
             # Identity tuple that uniquely names this source-tool finding.
@@ -149,9 +216,13 @@ class SecretScannerAdapter:
             obs_uuid = deterministic_uuid("observation", *finding_identity)
             subject_uuid = deterministic_uuid("subject", file_path)
 
-            severity_str = severity if isinstance(severity, str) else ""
             obs_props = [
-                _prop("severity", severity_str),
+                # ``source-tool`` honors the AU-3 claim that every
+                # observation identifies its source tool. The literal
+                # comes from ``_ADAPTER_NAME`` so it cannot drift from
+                # the registry key.
+                _prop("source-tool", _ADAPTER_NAME),
+                _prop("severity", severity),
                 _prop("file_path", file_path),
                 _prop("line_number", str(line_number)),
                 _prop("pattern_matched", pattern_matched),
@@ -174,7 +245,6 @@ class SecretScannerAdapter:
                 )
             )
 
-            outcome = _classify_severity(severity)
             if outcome is _Outcome.PASS:
                 continue
 
