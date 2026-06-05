@@ -65,7 +65,7 @@ class AdapterMatchError(Exception):
 # convention (the Protocol carries no constructor), so a single shared
 # instance per registered adapter is correct and avoids re-instantiating
 # on every dispatch call. The instance-vs-class contract gets revisited
-# in issue #13 before issue #3's first concrete adapter lands.
+# in issue #13 if stateful adapters appear.
 REGISTRY: dict[str, Adapter] = {}
 
 T = TypeVar("T", bound=type[Adapter])

@@ -16,7 +16,6 @@ redeclaring it.
 from __future__ import annotations
 
 import inspect
-from typing import TYPE_CHECKING
 
 import pytest
 
@@ -26,12 +25,10 @@ from oscal_pipeline.adapters import (
     AdapterAlreadyRegistered,
     AdapterMatchError,
     MultipleAdaptersMatch,
+    TransformResult,
     find_adapter,
     register_adapter,
 )
-
-if TYPE_CHECKING:
-    from oscal_pydantic.assessment_results import Observation
 
 
 class _StubAdapter:
@@ -40,8 +37,8 @@ class _StubAdapter:
     def matches(self, raw: dict[str, object]) -> bool:
         return raw.get("source_tool") == "stub"
 
-    def transform(self, raw: dict[str, object]) -> list[Observation]:
-        return []
+    def transform(self, raw: dict[str, object]) -> TransformResult:
+        return TransformResult.empty()
 
 
 def test_stub_satisfies_adapter_protocol_at_runtime() -> None:
@@ -87,8 +84,8 @@ def test_find_adapter_raises_when_multiple_adapters_claim_input() -> None:
         def matches(self, raw: dict[str, object]) -> bool:
             return True  # claims every input
 
-        def transform(self, raw: dict[str, object]) -> list[Observation]:
-            return []
+        def transform(self, raw: dict[str, object]) -> TransformResult:
+            return TransformResult.empty()
 
     register_adapter("stub")(_StubAdapter)
     register_adapter("greedy")(_GreedyAdapter)
@@ -117,8 +114,8 @@ def test_register_adapter_error_names_both_existing_and_rejected_class() -> None
         def matches(self, raw: dict[str, object]) -> bool:
             return False
 
-        def transform(self, raw: dict[str, object]) -> list[Observation]:
-            return []
+        def transform(self, raw: dict[str, object]) -> TransformResult:
+            return TransformResult.empty()
 
     with pytest.raises(AdapterAlreadyRegistered) as exc_info:
         register_adapter("stub")(_OtherAdapter)
@@ -134,8 +131,8 @@ def test_find_adapter_wraps_matches_exceptions_with_adapter_context() -> None:
         def matches(self, raw: dict[str, object]) -> bool:
             return raw["nonexistent_key"] == "value"  # raises KeyError
 
-        def transform(self, raw: dict[str, object]) -> list[Observation]:
-            return []
+        def transform(self, raw: dict[str, object]) -> TransformResult:
+            return TransformResult.empty()
 
     register_adapter("broken")(_BrokenAdapter)
 
@@ -156,8 +153,8 @@ def test_find_adapter_treats_truthy_non_bool_as_no_match() -> None:
             # The dispatcher must NOT silently dispatch on truthy values.
             return raw.get("source_tool", "")  # type: ignore[return-value]
 
-        def transform(self, raw: dict[str, object]) -> list[Observation]:
-            return []
+        def transform(self, raw: dict[str, object]) -> TransformResult:
+            return TransformResult.empty()
 
     register_adapter("truthy-bug")(_TruthyNonBoolAdapter)
 
@@ -169,15 +166,15 @@ def test_multiple_adapters_match_error_includes_keys_and_class_names() -> None:
         def matches(self, raw: dict[str, object]) -> bool:
             return True
 
-        def transform(self, raw: dict[str, object]) -> list[Observation]:
-            return []
+        def transform(self, raw: dict[str, object]) -> TransformResult:
+            return TransformResult.empty()
 
     class _GreedyB:
         def matches(self, raw: dict[str, object]) -> bool:
             return True
 
-        def transform(self, raw: dict[str, object]) -> list[Observation]:
-            return []
+        def transform(self, raw: dict[str, object]) -> TransformResult:
+            return TransformResult.empty()
 
     register_adapter("greedy-a")(_GreedyA)
     register_adapter("greedy-b")(_GreedyB)
