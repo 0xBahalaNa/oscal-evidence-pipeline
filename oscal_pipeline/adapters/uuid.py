@@ -4,8 +4,14 @@ from __future__ import annotations
 
 import uuid
 
-# Fixed namespace so uuid5 output is stable across machines and pipeline versions.
-_OSCAL_PIPELINE_NAMESPACE = uuid.UUID("f47ac10b-58cc-4372-a567-0e02b2c3d479")
+# Fixed namespace so uuid5 output is stable across machines and pipeline
+# versions. Generated once via ``uuid.uuid4()`` for this project; the
+# previous value was the well-known RFC 4122 example UUID, which is
+# shipped as the default in many tutorials and would silently collide
+# with any other project that picked the same default. A project-scoped
+# namespace makes observation UUIDs unguessable and ensures the
+# CM-3 cross-run-diff property is genuinely scoped to this pipeline.
+_OSCAL_PIPELINE_NAMESPACE = uuid.UUID("96368e43-bafd-432c-a608-66cb4df05b42")
 
 
 def deterministic_uuid(*parts: str) -> str:

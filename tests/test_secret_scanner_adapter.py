@@ -57,8 +57,14 @@ def test_transform_uuid_is_deterministic(
 
 
 def test_observation_uuid_derivation(adapter: SecretScannerAdapter) -> None:
-    identity = "bad-config.json|4|AKIA[0-9A-Z]{16}"
-    expected = deterministic_uuid(identity)
+    # The observation identity is namespace-prefixed with "observation" to
+    # keep its UUID space disjoint from subject / finding / target spaces;
+    # without the prefix, a file literally named "subject" / "finding" /
+    # "target" would collide with that sibling's UUID under the same
+    # joined-with-"|" name. Match the adapter's exact derivation here.
+    expected = deterministic_uuid(
+        "observation", "bad-config.json", "4", "AKIA[0-9A-Z]{16}"
+    )
     raw = json.loads(_FIXTURE.read_text(encoding="utf-8"))
     result = adapter.transform(raw)
     first_obs = result.observations[0]

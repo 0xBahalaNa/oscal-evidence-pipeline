@@ -134,8 +134,19 @@ class SecretScannerAdapter:
             severity = row.get("severity")
             control_ids = _require_control_ids(row, index)
 
-            identity = f"{file_path}|{line_number}|{pattern_matched}"
-            obs_uuid = deterministic_uuid(identity)
+            # Identity tuple that uniquely names this source-tool finding.
+            # Same tuple seeds three derived UUIDs: the observation
+            # (prefixed "observation"), the finding (prefixed "finding"),
+            # and the assessment target (derived from the control id
+            # below). Each derivation prepends a disjoint namespace token
+            # so the four UUID spaces (observation / subject / finding /
+            # target) cannot collide with each other when a file path
+            # happens to match a sibling-namespace string. Verified
+            # collision case before this fix: file_path="subject" +
+            # line_number=4 + pattern_matched="AKIA" produced an obs
+            # UUID identical to ``deterministic_uuid("subject", "4|AKIA")``.
+            finding_identity = (file_path, str(line_number), pattern_matched)
+            obs_uuid = deterministic_uuid("observation", *finding_identity)
             subject_uuid = deterministic_uuid("subject", file_path)
 
             severity_str = severity if isinstance(severity, str) else ""
@@ -169,7 +180,7 @@ class SecretScannerAdapter:
 
             primary_control = control_ids[0] if control_ids else finding_type
             target_id = deterministic_uuid("target", primary_control)
-            find_uuid = deterministic_uuid("finding", identity)
+            find_uuid = deterministic_uuid("finding", *finding_identity)
 
             findings.append(
                 Finding(
