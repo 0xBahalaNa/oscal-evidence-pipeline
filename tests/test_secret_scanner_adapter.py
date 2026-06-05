@@ -11,7 +11,10 @@ from oscal_pydantic.assessment_results import ObjectiveStatusState
 
 from oscal_pipeline.adapters import find_adapter
 from oscal_pipeline.adapters.registry import register_adapter
-from oscal_pipeline.adapters.secret_scanner import SecretScannerAdapter
+from oscal_pipeline.adapters.secret_scanner import (
+    SecretScannerAdapter,
+    UnknownSeverityError,
+)
 from oscal_pipeline.adapters.uuid import deterministic_uuid
 
 _FIXTURE = Path(__file__).parent / "fixtures" / "secret_scanner_mixed.json"
@@ -70,13 +73,17 @@ def test_observation_uuid_derivation(adapter: SecretScannerAdapter) -> None:
     first_obs = result.observations[0]
     assert first_obs.uuid == expected
     assert first_obs.description == "AWS Access Key ID"
-    prop_names = {p.name for p in first_obs.props or []}
-    assert prop_names == {
-        "source-tool",
-        "severity",
-        "file_path",
-        "line_number",
-        "pattern_matched",
+    # Assert prop VALUES (not just the set of names) — catches the silent
+    # regression where a refactor accidentally swaps the field bound to a
+    # prop name (e.g. ``_prop("severity", finding_type)`` would still pass
+    # a name-set assertion but ship corrupted evidence).
+    prop_values = {p.name: p.value for p in first_obs.props or []}
+    assert prop_values == {
+        "source-tool": "secret-scanner",
+        "severity": "CRITICAL",
+        "file_path": "bad-config.json",
+        "line_number": "4",
+        "pattern_matched": "AKIA[0-9A-Z]{16}",
     }
     assert first_obs.subjects is not None
     assert first_obs.subjects[0].title == "bad-config.json"
@@ -114,3 +121,84 @@ def test_matches_rejects_extra_top_level_keys() -> None:
     adapter = SecretScannerAdapter()
     raw = {"scan_metadata": {}, "findings": [], "summary": {}, "extra": 1}
     assert adapter.matches(raw) is False
+
+
+# --- Malformed-input loud-failure coverage (B1.1, B1.4, B1.5, B1.6) ---------
+#
+# Each test exercises one ``raise`` branch the adapter documents. Builds
+# inline dict fixtures rather than file-based ones so the assertion sits
+# next to the input that triggers it.
+
+
+def _well_formed_finding() -> dict[str, object]:
+    """Return a known-good finding to base malformed-variant tests on."""
+    return {
+        "file_path": "bad.json",
+        "line_number": 1,
+        "finding_type": "AWS Access Key ID",
+        "pattern_matched": "AKIA[0-9A-Z]{16}",
+        "severity": "HIGH",
+        "control_ids": ["IA-5"],
+    }
+
+
+def _envelope(finding: dict[str, object]) -> dict[str, object]:
+    return {
+        "scan_metadata": {"timestamp": "2026-06-04T12:00:00+00:00"},
+        "findings": [finding],
+        "summary": {},
+    }
+
+
+def test_transform_raises_on_non_string_severity(
+    adapter: SecretScannerAdapter,
+) -> None:
+    finding = _well_formed_finding()
+    finding["severity"] = None  # non-string
+    with pytest.raises(UnknownSeverityError, match="must be a string"):
+        adapter.transform(_envelope(finding))
+
+
+def test_transform_raises_on_unknown_severity_string(
+    adapter: SecretScannerAdapter,
+) -> None:
+    finding = _well_formed_finding()
+    finding["severity"] = "BANANA"  # outside the documented vocabulary
+    with pytest.raises(UnknownSeverityError, match="severity unknown"):
+        adapter.transform(_envelope(finding))
+
+
+def test_transform_rejects_bool_line_number(
+    adapter: SecretScannerAdapter,
+) -> None:
+    """``bool`` is a subclass of ``int`` in Python; the int-required guard must reject it."""
+    finding = _well_formed_finding()
+    finding["line_number"] = True  # bool, not int
+    with pytest.raises(ValueError, match="line_number must be an integer"):
+        adapter.transform(_envelope(finding))
+
+
+def test_transform_rejects_tz_naive_timestamp(
+    adapter: SecretScannerAdapter,
+) -> None:
+    """OSCAL ``collected`` requires a TZ-aware ISO 8601 timestamp."""
+    raw: dict[str, object] = {
+        "scan_metadata": {"timestamp": "2026-06-04T12:00:00"},  # no TZ
+        "findings": [],
+        "summary": {},
+    }
+    with pytest.raises(ValueError, match="TZ-aware"):
+        adapter.transform(raw)
+
+
+def test_observation_carries_source_tool_prop(
+    adapter: SecretScannerAdapter, raw_fixture: dict[str, object]
+) -> None:
+    """AU-3 requires every observation to identify its source tool."""
+    result = adapter.transform(raw_fixture)
+    for obs in result.observations:
+        source_tool_props = [
+            p for p in obs.props or [] if p.name == "source-tool"
+        ]
+        assert len(source_tool_props) == 1
+        assert source_tool_props[0].value == "secret-scanner"
