@@ -26,6 +26,7 @@ from oscal_pydantic.assessment_results import (
 from oscal_pipeline.adapters.registry import register_adapter
 from oscal_pipeline.adapters.result import TransformResult
 from oscal_pipeline.adapters.uuid import deterministic_uuid
+from oscal_pipeline.oscal.slug import objective_id_slug
 
 # Source-tool name used in two places: as the registry key (via
 # @register_adapter) and as the value of the "source-tool" property
@@ -47,6 +48,15 @@ class _Outcome(Enum):
     FAIL = "fail"
     WARN = "warn"
     PASS = "pass"
+
+
+class MissingControlIdError(ValueError):
+    """Raised when a FAIL/WARN finding has no ``control_ids`` to map.
+
+    Per the loud-failure-on-ambiguity policy, a non-PASS finding without
+    control traceability must halt at ingest rather than emit a
+    ``not-satisfied`` Finding with a synthetic target and no control props.
+    """
 
 
 class UnknownSeverityError(ValueError):
@@ -248,8 +258,16 @@ class SecretScannerAdapter:
             if outcome is _Outcome.PASS:
                 continue
 
-            primary_control = control_ids[0] if control_ids else finding_type
-            target_id = deterministic_uuid("target", primary_control)
+            if not control_ids:
+                raise MissingControlIdError(
+                    f"findings[{index}] has severity {severity!r} but empty "
+                    f"control_ids; FAIL/WARN findings require control mapping"
+                )
+
+            primary_control = control_ids[0]
+            # ``objective-id`` targets must resolve against a catalog objective
+            # slug (e.g. ``ia-5.7_obj``), not a synthetic UUID — see issue #17.
+            target_id = objective_id_slug(primary_control)
             find_uuid = deterministic_uuid("finding", *finding_identity)
 
             findings.append(
@@ -267,7 +285,7 @@ class SecretScannerAdapter:
                     related_observations=[
                         RelatedObservation(observation_uuid=obs_uuid),
                     ],
-                    props=_control_props(control_ids) if control_ids else None,
+                    props=_control_props(control_ids),
                 )
             )
 

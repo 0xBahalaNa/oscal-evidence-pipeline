@@ -12,10 +12,12 @@ from oscal_pydantic.assessment_results import ObjectiveStatusState
 from oscal_pipeline.adapters import find_adapter
 from oscal_pipeline.adapters.registry import register_adapter
 from oscal_pipeline.adapters.secret_scanner import (
+    MissingControlIdError,
     SecretScannerAdapter,
     UnknownSeverityError,
 )
 from oscal_pipeline.adapters.uuid import deterministic_uuid
+from oscal_pipeline.oscal.slug import objective_id_slug
 
 _FIXTURE = Path(__file__).parent / "fixtures" / "secret_scanner_mixed.json"
 
@@ -98,6 +100,7 @@ def test_finding_links_observation_and_carries_control_ids(
     assert fail_finding.related_observations is not None
     assert fail_finding.related_observations[0].observation_uuid == fail_obs.uuid
     assert fail_finding.target.status.state == ObjectiveStatusState.not_satisfied
+    assert fail_finding.target.target_id == objective_id_slug("IA-5(7)")
     control_values = {p.value for p in fail_finding.props or [] if p.name == "control-id"}
     assert control_values == {"IA-5(7)", "SC-12", "SC-28"}
 
@@ -202,3 +205,12 @@ def test_observation_carries_source_tool_prop(
         ]
         assert len(source_tool_props) == 1
         assert source_tool_props[0].value == "secret-scanner"
+
+
+def test_transform_raises_on_empty_control_ids_for_fail(
+    adapter: SecretScannerAdapter,
+) -> None:
+    fixture_path = Path(__file__).parent / "fixtures" / "secret_scanner_empty_controls.json"
+    raw = json.loads(fixture_path.read_text(encoding="utf-8"))
+    with pytest.raises(MissingControlIdError, match="empty control_ids"):
+        adapter.transform(raw)
