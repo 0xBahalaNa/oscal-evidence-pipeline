@@ -1,3 +1,10 @@
+![License](https://img.shields.io/badge/License-MIT-green?style=flat)
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab?style=flat)
+![OSCAL](https://img.shields.io/badge/OSCAL-Assessment%20Results-1c5b94?style=flat)
+![NIST 800-53](https://img.shields.io/badge/NIST-800--53%20Rev%205-004990?style=flat)
+![FedRAMP](https://img.shields.io/badge/FedRAMP-High%20Baseline-0071bc?style=flat)
+![CJIS](https://img.shields.io/badge/CJIS-Security%20Policy%20v6.0-cc0000?style=flat)
+
 # OSCAL Evidence Pipeline
 
 A Python pipeline that transforms compliance findings from existing audit tools (`s3-audit`, `sg-audit`, `cloudtrail-audit`, `secret-scanner`, `evidence-logger`) into **OSCAL Assessment Results (SAR)** JSON — the machine-readable evidence format required by FedRAMP 20x and increasingly expected by federal assessors reviewing FedRAMP High and CJIS v6.0 authorization packages.
