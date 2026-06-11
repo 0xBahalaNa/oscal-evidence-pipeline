@@ -2,8 +2,8 @@
 
 The registry is a module-level mapping populated by the
 ``register_adapter`` decorator at import time. The ingestion stage
-(landing in issue #5) calls ``find_adapter(raw)`` to resolve which
-adapter owns a given input JSON document.
+(``oscal_pipeline/ingest.py``, issue #4) calls ``find_adapter(raw)`` to
+resolve which adapter owns a given input JSON document.
 
 Three policies are enforced loudly because silent failures in an evidence
 pipeline are exactly the kind of regression CJIS AU-6 weekly reviews are
@@ -102,8 +102,12 @@ def register_adapter(key: str) -> Callable[[T], T]:
     return _decorator
 
 
-def find_adapter(raw: dict[str, object]) -> Adapter | None:
-    """Return the adapter that claims ``raw``, or ``None`` if none claim it.
+def find_adapter(raw: dict[str, object]) -> tuple[str, Adapter] | None:
+    """Return ``(registry_key, adapter)`` for the adapter that claims ``raw``.
+
+    Returns ``None`` if no adapter claims it. ``registry_key`` is the
+    canonical source-tool name (e.g. ``"secret-scanner"``) registered via
+    ``register_adapter`` — required downstream for SAR ``RunMetadata``.
 
     Iterates *every* registered adapter (no short-circuit) so multi-match
     ambiguity surfaces every offender, not just the first two.
@@ -114,7 +118,7 @@ def find_adapter(raw: dict[str, object]) -> Adapter | None:
 
     Three failure modes are surfaced loudly:
 
-    * No adapter claims ``raw`` → return ``None``.
+    * No adapter claims ``raw`` → return ``None`` (not a tuple).
     * Two or more adapters claim ``raw`` → raise
       ``MultipleAdaptersMatch`` listing every offending key + class name.
     * Any adapter's ``matches()`` itself raises → wrap in
@@ -142,4 +146,4 @@ def find_adapter(raw: dict[str, object]) -> Adapter | None:
         raise MultipleAdaptersMatch(
             f"multiple adapters claim this input: {offenders}"
         )
-    return matched[0][1]
+    return matched[0]
