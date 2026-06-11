@@ -9,9 +9,10 @@ Public API re-exported here:
 * :class:`Adapter` — the typed Protocol every adapter implements
 * :class:`TransformResult` — observations + findings from ``transform``
 * :func:`register_adapter` — decorator for adapter discovery
-* :func:`find_adapter` — dispatch by input-JSON fingerprint
+* :func:`find_adapter` — dispatch by input-JSON fingerprint; returns ``(key, adapter)``
 * :data:`REGISTRY` — module-level mapping for introspection / tests
-* :class:`AdapterAlreadyRegistered` / :class:`MultipleAdaptersMatch` — registry errors
+* :class:`AdapterAlreadyRegistered` / :class:`MultipleAdaptersMatch` /
+  :class:`AdapterMatchError` — registry errors
 """
 
 from oscal_pipeline.adapters.base import Adapter

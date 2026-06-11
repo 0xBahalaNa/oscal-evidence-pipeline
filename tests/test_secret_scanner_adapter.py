@@ -42,7 +42,10 @@ def test_matches_secret_scanner_fixture(raw_fixture: dict[str, object]) -> None:
 def test_find_adapter_resolves_secret_scanner(raw_fixture: dict[str, object]) -> None:
     register_adapter("secret-scanner")(SecretScannerAdapter)
     resolved = find_adapter(raw_fixture)
-    assert isinstance(resolved, SecretScannerAdapter)
+    assert resolved is not None
+    key, adapter = resolved
+    assert key == "secret-scanner"
+    assert isinstance(adapter, SecretScannerAdapter)
 
 
 def test_transform_produces_four_observations_and_three_findings(

@@ -68,9 +68,12 @@ def test_register_adapter_raises_on_duplicate_key() -> None:
         register_adapter("stub")(_StubAdapter)
 
 
-def test_find_adapter_returns_matching_instance() -> None:
+def test_find_adapter_returns_matching_key_and_instance() -> None:
     register_adapter("stub")(_StubAdapter)
-    instance = find_adapter({"source_tool": "stub"})
+    resolved = find_adapter({"source_tool": "stub"})
+    assert resolved is not None
+    key, instance = resolved
+    assert key == "stub"
     assert isinstance(instance, _StubAdapter)
 
 

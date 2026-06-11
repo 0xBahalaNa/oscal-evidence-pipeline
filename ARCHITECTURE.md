@@ -60,15 +60,18 @@ By keeping audit tools focused on detection (their own native JSON) and centrali
 
 ### Stage 2 — Ingestion
 
-**Responsibility:** Read every `*.json` file in the input directory, detect which upstream tool produced it (by structural fingerprint or explicit `source_tool` field), and route it to the matching adapter.
+**Responsibility:** Read every `*.json` file in the input directory, detect which upstream tool produced it (by structural fingerprint), and route it to the matching adapter.
 
 **Detection strategy:** Each upstream tool's JSON has a stable top-level structure. For example, `secret-scanner --output json` produces `{"scan_metadata": {...}, "findings": [...], "summary": {...}}`. Schema fingerprinting matches on the top-level key set rather than requiring upstream tools to add a `source_tool` field — keeps the upstream tools loose-coupled.
 
 **Failure modes:**
 
 - **Unknown schema (no adapter claims the input):** log warning, skip file, continue. The pipeline never fails the whole run on an unrecognized input.
-- **Ambiguous schema (two or more adapters claim the input):** raise `MultipleAdaptersMatch` and halt the file. Silent ambiguity in evidence production becomes a late-stage CJIS AU-6 / FedRAMP 20x audit failure; we prefer to fail at ingest so the operator can fix the offending adapter's fingerprint.
-- **Adapter `matches()` raises:** raise `AdapterMatchError` wrapping the original exception with the offending adapter's registry key and class name. A broken adapter must not silently mask a correct one downstream — that's the same silent-ambiguity failure mode the multi-match policy guards against.
+- **Ambiguous schema (two or more adapters claim the input):** raise `MultipleAdaptersMatch` and halt the run. Catching and resuming drops every later file when the generator finalizes — silent incompleteness is the late-stage CJIS AU-6 / FedRAMP 20x audit failure we avoid by failing loud at ingest.
+- **Adapter `matches()` raises:** raise `AdapterMatchError` wrapping the original exception with the offending adapter's registry key and class name. A broken adapter must not silently mask a correct one downstream — that's the same silent-ambiguity failure mode the multi-match policy guards against — and **halt the run** (same scope as the multi-match case).
+- **Malformed JSON / unreadable file:** log ERROR, skip file, continue.
+- **Top-level JSON not an object (list / scalar):** log WARNING, skip file, continue.
+- **Missing or non-directory `input_dir`:** raise before iteration begins (`FileNotFoundError` / `NotADirectoryError`).
 
 ### Stage 3 — Transformation
 
