@@ -32,7 +32,14 @@ if TYPE_CHECKING:
 # ``oscal-version`` MUST match the schema Trestle uses to validate it, or
 # the planned NIST OSCAL JSON Schema CI gate (per the repo CLAUDE.md
 # mandate) will reject a version-mismatch on every run.
-__all__ = ["OSCAL_VERSION", "RunMetadata", "SarValidationError", "assemble"]
+__all__ = [
+    "OSCAL_VERSION",
+    "OscalAssessmentResults",
+    "RunMetadata",
+    "SarValidationError",
+    "assemble",
+    "serialize_sar",
+]
 
 # Issue #5 names the root model ``OscalAssessmentResults``; oscal-pydantic
 # generates ``SecurityAssessmentResultsSAR`` for the same schema object.
@@ -140,6 +147,33 @@ def _normalize_reviewed_controls_for_trestle(payload: dict[str, object]) -> None
                 selection.pop("include-controls", None)
 
 
+def _build_sar_document_payload(sar: SecurityAssessmentResultsSAR) -> dict[str, object]:
+    """Return the canonical OSCAL Assessment Results document dict for ``sar``.
+
+    Single source of truth for both Trestle validation (Stage 4) and
+    evidence serialization (Stage 5). Strips JSON nulls and normalizes
+    reviewed-controls union shape so the bytes written to disk are
+    exactly what ``assemble()`` validated.
+    """
+    assessment_results = _strip_nulls(json.loads(sar.json(by_alias=True)))
+    if isinstance(assessment_results, dict):
+        _normalize_reviewed_controls_for_trestle(assessment_results)
+    return {"assessment-results": assessment_results}
+
+
+def serialize_sar(sar: SecurityAssessmentResultsSAR) -> bytes:
+    """Serialize ``sar`` to UTF-8 JSON bytes for evidence output.
+
+    Uses ``_build_sar_document_payload`` — the same canonical form
+    ``_validate_via_trestle_models`` parses — so validate-what-you-emit
+    cannot drift between assembler and writer.
+    """
+    document = _build_sar_document_payload(sar)
+    return json.dumps(document, ensure_ascii=False, separators=(",", ":")).encode(
+        "utf-8"
+    )
+
+
 def _validate_via_trestle_models(sar: SecurityAssessmentResultsSAR) -> None:
     """Round-trip the SAR through Trestle's pydantic models + AllValidator.
 
@@ -164,14 +198,7 @@ def _validate_via_trestle_models(sar: SecurityAssessmentResultsSAR) -> None:
     from trestle.core.validator_factory import validator_factory
     from trestle.oscal.assessment_results import Model as TrestleSARModel
 
-    payload: dict[str, object] = {
-        "assessment-results": _strip_nulls(
-            json.loads(sar.json(by_alias=True))
-        ),
-    }
-    assessment_results = payload["assessment-results"]
-    if isinstance(assessment_results, dict):
-        _normalize_reviewed_controls_for_trestle(assessment_results)
+    payload = _build_sar_document_payload(sar)
     try:
         wrapper = TrestleSARModel.parse_obj(payload)
         trestle_model = wrapper.assessment_results
