@@ -1,0 +1,291 @@
+{
+  "assessment-results": {
+    "uuid": "9741a6ff-84f3-5519-b3ba-affd9f37d64b",
+    "metadata": {
+      "title": "Evidence Pipeline Run 2026-05-15",
+      "last-modified": "2026-05-15T09:31:00+00:00",
+      "version": "1.0.0",
+      "oscal-version": "1.2.1",
+      "parties": [
+        {
+          "uuid": "7222845f-cddb-5dbd-a1fe-483c9d13750e",
+          "type": "organization",
+          "name": "ci-evidence-bot"
+        }
+      ]
+    },
+    "import-ap": {
+      "href": "#fedramp-high-evidence-plan"
+    },
+    "results": [
+      {
+        "uuid": "fdae2618-5b23-5a51-8b37-76a1f2b0ed48",
+        "title": "secret-scanner evidence run",
+        "description": "Automated evidence collection from secret-scanner",
+        "start": "2026-05-15T09:31:00+00:00",
+        "end": "2026-05-15T09:31:00+00:00",
+        "reviewed-controls": {
+          "control-selections": [
+            {
+              "include-controls": [
+                {
+                  "control-id": "ia-5.1"
+                },
+                {
+                  "control-id": "ia-5.7"
+                },
+                {
+                  "control-id": "sc-12"
+                },
+                {
+                  "control-id": "sc-28"
+                }
+              ]
+            }
+          ]
+        },
+        "observations": [
+          {
+            "uuid": "69709b6c-d539-57ab-bed3-7d9c5ac36c6c",
+            "description": "No secrets detected",
+            "props": [
+              {
+                "name": "source-tool",
+                "value": "secret-scanner"
+              },
+              {
+                "name": "severity",
+                "value": "INFO"
+              },
+              {
+                "name": "file_path",
+                "value": "src/config/README.md"
+              },
+              {
+                "name": "line_number",
+                "value": "1"
+              },
+              {
+                "name": "pattern_matched",
+                "value": "N/A"
+              }
+            ],
+            "methods": [
+              "EXAMINE"
+            ],
+            "subjects": [
+              {
+                "subject-uuid": "19cf974c-5ac3-5985-a824-742a75a30803",
+                "type": "software",
+                "title": "src/config/README.md"
+              }
+            ],
+            "collected": "2026-05-15T09:30:00+00:00"
+          },
+          {
+            "uuid": "9e83a772-876b-5a96-9683-88836808c0fc",
+            "description": "Hardcoded Password",
+            "props": [
+              {
+                "name": "source-tool",
+                "value": "secret-scanner"
+              },
+              {
+                "name": "severity",
+                "value": "MEDIUM"
+              },
+              {
+                "name": "file_path",
+                "value": "src/config/app.ini"
+              },
+              {
+                "name": "line_number",
+                "value": "21"
+              },
+              {
+                "name": "pattern_matched",
+                "value": "(?i)password\\s*="
+              }
+            ],
+            "methods": [
+              "EXAMINE"
+            ],
+            "subjects": [
+              {
+                "subject-uuid": "e98a7e64-661d-5f10-b430-21ba20d8a077",
+                "type": "software",
+                "title": "src/config/app.ini"
+              }
+            ],
+            "collected": "2026-05-15T09:30:00+00:00"
+          },
+          {
+            "uuid": "affeaf6a-f69b-5d6b-a469-8602d79ee837",
+            "description": "AWS Access Key ID",
+            "props": [
+              {
+                "name": "source-tool",
+                "value": "secret-scanner"
+              },
+              {
+                "name": "severity",
+                "value": "CRITICAL"
+              },
+              {
+                "name": "file_path",
+                "value": "src/config/deploy.tf"
+              },
+              {
+                "name": "line_number",
+                "value": "12"
+              },
+              {
+                "name": "pattern_matched",
+                "value": "AKIA[0-9A-Z]{16}"
+              }
+            ],
+            "methods": [
+              "EXAMINE"
+            ],
+            "subjects": [
+              {
+                "subject-uuid": "5bcf82ab-dc44-5258-8d8b-964a0e34488f",
+                "type": "software",
+                "title": "src/config/deploy.tf"
+              }
+            ],
+            "collected": "2026-05-15T09:30:00+00:00"
+          },
+          {
+            "uuid": "b64e74a1-b714-5fc5-a9d1-10541a8903c1",
+            "description": "AWS Secret Access Key",
+            "props": [
+              {
+                "name": "source-tool",
+                "value": "secret-scanner"
+              },
+              {
+                "name": "severity",
+                "value": "HIGH"
+              },
+              {
+                "name": "file_path",
+                "value": "src/config/.env.staging"
+              },
+              {
+                "name": "line_number",
+                "value": "3"
+              },
+              {
+                "name": "pattern_matched",
+                "value": "(?i)aws_secret_access_key"
+              }
+            ],
+            "methods": [
+              "EXAMINE"
+            ],
+            "subjects": [
+              {
+                "subject-uuid": "f79bb974-9a16-524e-b3df-02f79151ff14",
+                "type": "software",
+                "title": "src/config/.env.staging"
+              }
+            ],
+            "collected": "2026-05-15T09:30:00+00:00"
+          }
+        ],
+        "findings": [
+          {
+            "uuid": "15edb70e-2d5c-54d0-8d24-cd66cbdd6f7a",
+            "title": "AWS Secret Access Key",
+            "description": "AWS Secret Access Key",
+            "props": [
+              {
+                "name": "control-id",
+                "value": "IA-5(7)"
+              },
+              {
+                "name": "control-id",
+                "value": "SC-12"
+              },
+              {
+                "name": "control-id",
+                "value": "SC-28"
+              }
+            ],
+            "target": {
+              "type": "objective-id",
+              "target-id": "ia-5.7_obj",
+              "status": {
+                "state": "not-satisfied"
+              }
+            },
+            "related-observations": [
+              {
+                "observation-uuid": "b64e74a1-b714-5fc5-a9d1-10541a8903c1"
+              }
+            ]
+          },
+          {
+            "uuid": "d58278f2-118c-5b51-8881-07636cfbe4a0",
+            "title": "AWS Access Key ID",
+            "description": "AWS Access Key ID",
+            "props": [
+              {
+                "name": "control-id",
+                "value": "IA-5(7)"
+              },
+              {
+                "name": "control-id",
+                "value": "SC-12"
+              },
+              {
+                "name": "control-id",
+                "value": "SC-28"
+              }
+            ],
+            "target": {
+              "type": "objective-id",
+              "target-id": "ia-5.7_obj",
+              "status": {
+                "state": "not-satisfied"
+              }
+            },
+            "related-observations": [
+              {
+                "observation-uuid": "affeaf6a-f69b-5d6b-a469-8602d79ee837"
+              }
+            ]
+          },
+          {
+            "uuid": "dae6fcfe-e156-53b8-bfcf-1e983f76ef0b",
+            "title": "Hardcoded Password",
+            "description": "Hardcoded Password",
+            "props": [
+              {
+                "name": "control-id",
+                "value": "IA-5(7)"
+              },
+              {
+                "name": "control-id",
+                "value": "IA-5(1)"
+              }
+            ],
+            "target": {
+              "type": "objective-id",
+              "target-id": "ia-5.7_obj",
+              "status": {
+                "state": "not-satisfied"
+              }
+            },
+            "related-observations": [
+              {
+                "observation-uuid": "9e83a772-876b-5a96-9683-88836808c0fc"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

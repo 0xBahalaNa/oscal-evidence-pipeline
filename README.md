@@ -122,7 +122,7 @@ The pinned dependency tree lives in `requirements.txt` — it's the **CM-3 artif
 ```bash
 oscal-pipeline run \
   --input-dir ./audit-outputs/ \
-  --output ./evidence/assessment-results-$(date +%Y-%m-%d).json \
+  --output ./evidence/ \
   --profile fedramp-high
 ```
 
@@ -130,7 +130,53 @@ The pipeline reads each `*.json` file in `--input-dir`, identifies the source to
 
 ## Sample Evidence Output
 
-See `examples/sample-assessment-results.json` (lands with the first implementation PR). The shape will follow the OSCAL Assessment Results model: `metadata` block (title, version, last-modified, parties), `import-ap` reference to the assessment plan, `results[]` array with one entry per assessment cycle, and per-result `observations[]` + `findings[]` arrays.
+A complete worked example lives in [`examples/`](examples/):
+
+- **Input** — [`examples/sample-secret-scanner-input.json`](examples/sample-secret-scanner-input.json): a `secret-scanner` run that flagged four files.
+- **Output** — [`examples/sample-assessment-results.json`](examples/sample-assessment-results.json): the schema-validated OSCAL SAR the pipeline produced from it.
+
+Regenerate the output from the input at any time:
+
+```bash
+oscal-pipeline run --input-dir examples/ --output ./evidence/ --profile fedramp-high
+```
+
+> No real credentials appear in the sample. The `secret-scanner` schema records only the **detection regex** (`pattern_matched`), a file path, and a severity — never the matched secret — so the evidence artifact is structurally incapable of leaking a credential.
+
+### Walk-through: one finding, end to end
+
+The scanner found a hardcoded AWS access key. The input finding:
+
+```json
+{
+  "file_path": "src/config/deploy.tf",
+  "line_number": 12,
+  "finding_type": "AWS Access Key ID",
+  "pattern_matched": "AKIA[0-9A-Z]{16}",
+  "severity": "CRITICAL",
+  "control_ids": ["IA-5(7)", "SC-12", "SC-28"]
+}
+```
+
+The pipeline splits it into **two** OSCAL objects: an **observation** (the raw fact that was seen) and a **finding** (the assessor's conclusion). Control mappings live on the *finding*, because mapping a fact to a control is an assessment *decision* — the observation stays reusable raw evidence.
+
+| OSCAL field | Comes from | What it means |
+|---|---|---|
+| `observation.description` | `finding_type` | What the scanner detected |
+| `observation.methods` | constant `["EXAMINE"]` | The NIST 800-53A assessment method a file scan maps to. (`methods` is a free-form OSCAL string; the pipeline populates it with the 800-53A *examine / interview / test* vocabulary — a scan inspects artifacts, so *examine*.) |
+| `observation.collected` | `scan_metadata.timestamp` | When the **evidence** was gathered — provenance from the source tool, **not** pipeline run time |
+| `observation.props[*]` | finding fields | AU-3 audit-record content: source tool, severity, file, line, detection pattern |
+| `observation.subjects[0]` | `file_path` | The assessed subject (`type: software`, `title:` the path) |
+| `finding.target.target-id` | `control_ids[0]` → slug | A machine-oriented reference to the 800-53A assessment **objective** the failure implicates (`IA-5(7)` → `ia-5.7_obj`) |
+| `finding.props[control-id]` | all `control_ids` | The catalog control IDs the finding maps to (raw form, e.g. `IA-5(7)`) — the human/catalog-facing side of the same decision |
+| `finding.target.status.state` | severity | `not-satisfied` for any FAIL/WARN. OSCAL offers only `satisfied` / `not-satisfied`, so a WARN collapses into `not-satisfied` by design |
+| `results[0].reviewed-controls` | union of all findings' controls | The controls under assessment **in this result**, in slug form, sorted |
+
+An **INFO** finding ("no secrets detected") produces an observation but **no finding** — there's nothing to conclude, and OSCAL does not require a finding for every observation.
+
+### Why the output is deterministic (CM-3)
+
+Re-run the pipeline on the same input and every observation, finding, and subject UUID reproduces **exactly** — each is a `uuid5` hash of the object's stable identity (an observation or finding keys on `file_path` + line + detection pattern; a subject keys on `file_path` alone), not random. Only the assessment timestamps (`start` / `end` / `last-modified`) and the two timestamp-seeded document UUIDs change between runs. That stability is what makes two SARs from different dates **diffable** — the unit of input to a FedRAMP 20x continuous-monitoring review.
 
 ## Future Enhancements
 
