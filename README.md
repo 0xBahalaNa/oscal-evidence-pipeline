@@ -1,3 +1,4 @@
+![CI](https://github.com/0xBahalaNa/oscal-evidence-pipeline/actions/workflows/test.yaml/badge.svg)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab?style=flat)
 ![OSCAL](https://img.shields.io/badge/OSCAL-Assessment%20Results-1c5b94?style=flat)
@@ -103,8 +104,9 @@ cd oscal-evidence-pipeline
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install the package in editable mode with dev extras (pytest + coverage)
-pip install -e ".[dev]"
+# Install exact pinned deps (--no-deps skips the resolver; avoids trestle/pydantic conflict)
+pip install --no-deps -r requirements.lock
+pip install -e . --no-deps
 
 # Smoke-test that the package imports and exposes a version
 python -c "import oscal_pipeline; print(oscal_pipeline.__version__)"
@@ -113,7 +115,7 @@ python -c "import oscal_pipeline; print(oscal_pipeline.__version__)"
 pytest
 ```
 
-The pinned dependency tree lives in `requirements.txt` — it's the **CM-3 artifact** for this repo: the exact versions used to produce any given OSCAL SAR, recorded once and version-controlled. The looser compatible-release pins in `pyproject.toml` define the contract for downstream installers; the two files together separate "what the package needs" from "what we shipped against."
+The complete pinned dependency tree lives in `requirements.lock` — it's the **CM-3 artifact** for this repo: the exact versions used to produce any given OSCAL SAR, recorded once and version-controlled. `requirements.txt` documents direct-dependency intent; the looser compatible-release pins in `pyproject.toml` define the contract for downstream installers. The three files together separate "what the package needs" from "what we shipped against."
 
 ## Usage
 
