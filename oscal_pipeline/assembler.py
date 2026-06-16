@@ -180,10 +180,12 @@ def _validate_via_trestle_models(sar: SecurityAssessmentResultsSAR) -> None:
     This is **structural / model-level** validation only — it parses the
     SAR through Trestle's typed models and runs Trestle's
     ``AllValidator`` chain (Catalog / Duplicates / Refs / Links /
-    RuleParameters). It is NOT the published NIST OSCAL JSON Schema
-    gate — the schema gate is planned to live in CI per the repo
-    CLAUDE.md mandate, where it can pin a schema version independently
-    of Trestle's bundled models.
+    RuleParameters).     It is NOT the published NIST OSCAL JSON Schema gate — that gate is
+    its schema-strict complement, implemented in
+    ``tests/test_schema_validation.py`` (runs in CI via the ``test`` job),
+    validating the emitted SAR against the vendored schema at
+    ``oscal_pipeline/schemas/oscal_assessment-results_schema-<OSCAL_VERSION>.json``;
+    that gate catches the format/regex constraints this model-level pass relaxes.
 
     Failure modes this function does catch: duplicate UUIDs across
     observations/findings/parties, broken intra-document href refs,
@@ -212,11 +214,10 @@ def _validate_via_trestle_models(sar: SecurityAssessmentResultsSAR) -> None:
     if not validator.model_is_valid(trestle_model, quiet=True, trestle_root=None):
         # NB: this gates against Trestle's internal model validators
         # (Catalog / Duplicates / Refs / Links / RuleParameters). It does
-        # NOT validate against the published NIST OSCAL JSON Schema —
-        # that gate is planned for a CI step (see follow-up issue) so the
-        # assembler stays import-time-cheap. Operators relying on the
-        # CLAUDE.md "schema-validate before commit" mandate should also
-        # wire the CI step.
+        # NOT validate against the published NIST OSCAL JSON Schema — that
+        # gate lives in ``tests/test_schema_validation.py`` (CI ``test`` job)
+        # so the assembler stays import-time-cheap while CI still enforces
+        # the vendored NIST schema before evidence ships.
         raise SarValidationError(
             f"assembled SAR failed Trestle validation: {validator.error_msg()}"
         )

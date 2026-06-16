@@ -33,6 +33,7 @@ classifiers = [
 # and revisit if upstream resumes a release cadence.
 dependencies = [
     "compliance-trestle~=4.0",
+    "jsonschema~=4.23",
     "oscal-pydantic==2023.3.21",
 ]
 
@@ -65,7 +66,7 @@ exclude = ["tests*", "examples*"]
 # anyone who installs the wheel; their checker treats every imported
 # symbol as ``Any``.
 [tool.setuptools.package-data]
-oscal_pipeline = ["py.typed"]
+oscal_pipeline = ["py.typed", "schemas/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

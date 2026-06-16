@@ -38,14 +38,14 @@ This pipeline is a meta-tool: it doesn't satisfy access controls directly. It sa
 | CA-2 Control Assessments | Yes | — | Produces the OSCAL SAR artifact that documents each assessment cycle |
 | CA-7 Continuous Monitoring | Yes | — | Runs per audit-tool execution; produces a timestamped SAR for each cycle |
 | AU-3 Content of Audit Records | Yes | — | Preserves timestamp, source tool, finding type, mapped control IDs in every SAR observation |
-| AU-12 Audit Record Generation | Yes | — | Wraps audit-tool outputs into a generated, schema-validated record |
+| AU-12 Audit Record Generation | Yes | — | Wraps audit-tool outputs into a generated record — Trestle-structural-validated at runtime, and gated against the published NIST OSCAL JSON Schema in CI |
 | SI-4 System Monitoring | Yes | — | SAR output feeds continuous monitoring dashboards and KSI metric pipelines |
 | CM-3 Configuration Change Control | Yes | — | Every pipeline run produces a versioned, immutable evidence artifact (timestamped filename, deterministic content) |
 | CA-2, CA-7, AU-12 | Yes | 1-year retention, weekly review | SAR JSON is the artifact retained for the CJIS AU-6 weekly review |
 
 ## How an Auditor Uses This Output
 
-An assessor reviewing a FedRAMP High or CJIS v6.0 authorization package can consume the SAR JSON directly without manual transcription. Each SAR `observation` maps one-to-one to an NIST 800-53A assessment objective — for example, an `s3-audit` finding of "BucketX failed encryption check" becomes an OSCAL observation with `relevant-evidence` pointing to the source tool, `subjects` referencing the bucket, and `props` carrying the mapped control IDs (`sc-28`, `sc-28.1`). The assessor's adequacy determination (satisfied / other-than-satisfied) is captured as the OSCAL `finding` object.
+An assessor reviewing a FedRAMP High or CJIS v6.0 authorization package can consume the SAR JSON directly without manual transcription — each runtime SAR passes Trestle's structural model validation, and the canonical sample SAR is checked against the published NIST OSCAL JSON Schema in CI on every pull request (and pushes to `main`). Each SAR `observation` maps one-to-one to an NIST 800-53A assessment objective — for example, an `s3-audit` finding of "BucketX failed encryption check" becomes an OSCAL observation with `relevant-evidence` pointing to the source tool, `subjects` referencing the bucket, and `props` carrying the mapped control IDs (`sc-28`, `sc-28.1`). The assessor's adequacy determination (satisfied / other-than-satisfied) is captured as the OSCAL `finding` object.
 
 Combined with `evidence-logger` for retention and `aws-config-compliance-monitor` for continuous detection, this completes the FedRAMP 20x evidence loop: **detect → transform → retain → review**.
 
@@ -53,7 +53,8 @@ Combined with `evidence-logger` for retention and `aws-config-compliance-monitor
 
 FedRAMP 20x (Pilot launched March 2025, High pilot FY26 Q4) restructures the program around five pillars: compliance-as-code, machine-readable evidence, continuous monitoring, API-driven evidence, and automated scanning. This pipeline targets the **machine-readable evidence** pillar directly:
 
-- **OSCAL output, not Word/PDF**: Every SAR is a JSON document validated against the NIST OSCAL schema. No manual transcription, no version drift between the spreadsheet and the system.
+- **OSCAL output, not Word/PDF**: Every SAR is a JSON document. At runtime each SAR passes Trestle's structural model validation (Layer 2); in CI, the canonical sample SAR is additionally validated against the published NIST OSCAL JSON Schema (Layer 3) on every pull request (and pushes to `main`) — a schema-nonconformant SAR fails CI and blocks merge. The Layer-3 gate enforces JSON structure, required properties, enums, types, and an approximate token regex (not full `date-time`/`uri` format checking). No manual transcription, no version drift between the spreadsheet and the system.
+  - See [ARCHITECTURE.md](ARCHITECTURE.md) §11 (Validation Layers & Schema-Pinning Policy) for the three-layer model (oscal-pydantic typed import → Trestle structural → published-schema CI gate) and the `OSCAL_VERSION` schema-pinning policy.
 - **Continuous evidence generation**: Each pipeline run emits a timestamped SAR. A FedRAMP 20x reviewer comparing two SARs from different dates can read the delta directly — a KSI metric in flight.
 - **API-driven**: The pipeline is a library + CLI. It can be invoked from CI/CD, from a scheduled job, or from an evidence orchestrator (e.g., on every CloudTrail event indicating an audit-tool re-run).
 - **30-day vs 90-day review window**: FedRAMP 20x machine-readable packages get a 30-day review SLA versus 90 days for traditional packages. The SAR output is the unit of input to that 30-day review.
@@ -128,14 +129,14 @@ oscal-pipeline run \
   --profile fedramp-high
 ```
 
-The pipeline reads each `*.json` file in `--input-dir`, identifies the source tool by schema fingerprint, transforms each finding into an OSCAL `observation` + `finding`, assembles the full SAR via Trestle, and emits a schema-validated `assessment-results.json`.
+The pipeline reads each `*.json` file in `--input-dir`, identifies the source tool by schema fingerprint, transforms each finding into an OSCAL `observation` + `finding`, assembles the full SAR via Trestle, and emits an `assessment-results.json` that has passed Trestle's structural model validation (Layer 2). Conformance against the published NIST OSCAL JSON Schema (Layer 3) is enforced in CI on the canonical sample SAR — see [ARCHITECTURE.md](ARCHITECTURE.md) §11.
 
 ## Sample Evidence Output
 
 A complete worked example lives in [`examples/`](examples/):
 
 - **Input** — [`examples/sample-secret-scanner-input.json`](examples/sample-secret-scanner-input.json): a `secret-scanner` run that flagged four files.
-- **Output** — [`examples/sample-assessment-results.json`](examples/sample-assessment-results.json): the schema-validated OSCAL SAR the pipeline produced from it.
+- **Output** — [`examples/sample-assessment-results.json`](examples/sample-assessment-results.json): the OSCAL SAR the pipeline produced from it — Trestle-structural-validated on generation and gated against the published NIST OSCAL JSON Schema in CI (the canonical sample the Layer-3 test validates).
 
 Regenerate the output from the input at any time:
 
@@ -188,7 +189,7 @@ Re-run the pipeline on the same input and every observation, finding, and subjec
 - SSP skeleton generation from a Profile + Component Definition set (v2.0)
 - KSI metric extraction from cross-run SAR diffs (v2.0)
 - S3 archival of SAR JSON with Object Lock for CJIS AU-6 1-year retention
-- CI/CD integration: SAR-on-every-PR for any source audit tool
+- Extend the published-schema CI gate beyond the canonical sample SAR — validate operator-runtime output and SARs from every source audit tool, and wire it as a branch-protection required check (#33). *(The Layer-3 published-NIST-schema gate itself is delivered — it runs inside the existing `test.yaml` pytest step on every PR/push.)*
 
 ## Framework Reference
 
