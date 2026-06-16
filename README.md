@@ -118,6 +118,21 @@ pytest
 
 The complete pinned dependency tree lives in `requirements.lock` — it's the **CM-3 artifact** for this repo: the exact versions used to produce any given OSCAL SAR, recorded once and version-controlled. `requirements.txt` documents direct-dependency intent; the looser compatible-release pins in `pyproject.toml` define the contract for downstream installers. The three files together separate "what the package needs" from "what we shipped against."
 
+## Branch Protection
+
+`main`'s protection is **codified** in [`scripts/setup-branch-protection.sh`](scripts/setup-branch-protection.sh) and applied as a one-time ops step. Once applied, merging requires both CI checks to pass:
+
+- **`test`** — pytest + the 80% coverage gate + the OSCAL JSON-Schema validation (Layer 3).
+- **`lint`** — `mypy` (strict) + `ruff`.
+
+The script also sets merges to **squash-only** with the source branch auto-deleted on merge. Apply (or re-assert) the full protected state with:
+
+```bash
+bash scripts/setup-branch-protection.sh
+```
+
+The script is idempotent — re-running re-asserts the same configured state. This is what makes the test/validation suite a **merge precondition (NIST 800-53 CM-3)** rather than an advisory run: it configures `enforce_admins: true`, so once applied the gate is non-bypassable — a red check cannot be merged past, including by repository admins.
+
 ## Usage
 
 > Phase 1 MVP. CLI surface subject to change before v1.0 tag.
@@ -189,7 +204,7 @@ Re-run the pipeline on the same input and every observation, finding, and subjec
 - SSP skeleton generation from a Profile + Component Definition set (v2.0)
 - KSI metric extraction from cross-run SAR diffs (v2.0)
 - S3 archival of SAR JSON with Object Lock for CJIS AU-6 1-year retention
-- Extend the published-schema CI gate beyond the canonical sample SAR — validate operator-runtime output and SARs from every source audit tool, and wire it as a branch-protection required check (#33). *(The Layer-3 published-NIST-schema gate itself is delivered — it runs inside the existing `test.yaml` pytest step on every PR/push.)*
+- Extend the published-schema CI gate beyond the canonical sample SAR — validate operator-runtime output and SARs from every source audit tool. *(The Layer-3 published-NIST-schema gate itself is delivered — it runs inside the existing `test.yaml` pytest step on every PR/push.)*
 
 ## Framework Reference
 
