@@ -42,6 +42,7 @@ dev = [
     "pytest~=8.3",
     "pytest-cov~=6.0",
     "mypy~=1.13",
+    "ruff~=0.15.0",
 ]
 
 # The hyphenated console-script name follows Unix convention (cf. ``trestle``,
@@ -88,3 +89,15 @@ python_version = "3.11"
 module = "oscal_pydantic.*"
 ignore_missing_imports = true
 follow_imports = "skip"
+
+# Codify ruff's current default select (E4, E7, E9, F) explicitly so the
+# CI gate is version-stable: ruff's *implicit* default ruleset can shift
+# between releases, which would silently change what the gate enforces.
+# Scope matches mypy's files=["oscal_pipeline"] and the CI command's path
+# argument. Broadening the ruleset (E501/I/UP/B/SIM/...) is deferred — see
+# the follow-up issue.
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
