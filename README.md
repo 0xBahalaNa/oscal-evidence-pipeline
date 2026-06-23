@@ -61,7 +61,7 @@ FedRAMP 20x (Pilot launched March 2025, High pilot FY26 Q4) restructures the pro
 
 ## CJIS v6.0 Relevance
 
-CJIS Security Policy v6.0 became the audit standard on April 1, 2026 and aligns with NIST 800-53 Rev 5 as of December 2024. The most material delta this pipeline supports is **AU-6**: agencies handling CJI must retain audit records for **1 year** and conduct **weekly review** of those records. The SAR JSON produced by this pipeline is the artifact retained for that 1-year window and the input to that weekly review — directly readable by a reviewer without going back to the raw CloudTrail / IAM policy / S3 audit output.
+CJIS Security Policy v6.0 (published Dec 27, 2024) aligns to NIST 800-53 Rev 5 and phases in rather than switching on a single date: v5.9.5 was the scored audit standard through March 31, 2026 and v6.0 is the default audit baseline from April 1, 2026, with modernized Priority 2-4 controls fully enforceable Oct 1, 2027 (timing varies by state CSA). The most material delta this pipeline supports is **AU-6**: agencies handling CJI must retain audit records for **1 year** and conduct **weekly review** of those records. The SAR JSON produced by this pipeline is the artifact retained for that 1-year window and the input to that weekly review — directly readable by a reviewer without going back to the raw CloudTrail / IAM policy / S3 audit output.
 
 For public-safety SaaS environments (FedRAMP High + CJIS), the same SAR feeds both review tracks. Producing two separate sets of evidence is unnecessary when both frameworks now reference the same control catalog.
 
