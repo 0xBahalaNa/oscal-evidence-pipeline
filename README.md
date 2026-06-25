@@ -90,11 +90,11 @@ See `ARCHITECTURE.md` for the full pipeline design, library rationale (Trestle +
 - [`compliance-trestle`](https://github.com/IBM/compliance-trestle) — OSCAL workflow CLI + assemble/split
 - Source audit tools (any subset): `s3-audit`, `sg-audit`, `cloudtrail-audit`, `secret-scanner`, `evidence-logger`
 
-Detailed `requirements.txt` lands with the first implementation issue.
+The pinned dependency set lives in `requirements.txt` and `requirements.lock`; see [Development Setup](#development-setup) for how to install them and how the two differ.
 
 ## Development Setup
 
-The package scaffold (`oscal_pipeline/`, `tests/`, `examples/`, pinned `requirements.txt`, `pyproject.toml`) lands in Issue #1. To work on the pipeline locally:
+The package scaffold (`oscal_pipeline/`, `tests/`, `examples/`, `requirements.txt`, `requirements.lock`, `pyproject.toml`) is in place. To work on the pipeline locally:
 
 ```bash
 # Clone and enter the repo
