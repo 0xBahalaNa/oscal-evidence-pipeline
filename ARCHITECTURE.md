@@ -237,9 +237,9 @@ Validation happens in three layers. Each is a **superset** of the one before it 
 |-------|-----------|------------|---------|--------------------------------------|
 | **1 — Typed import** | `oscal-pydantic` model construction | Build time (Stage 3) | Type/shape drift at construction — wrong field types, missing required model fields | `oscal-pydantic==2023.3.21` (frozen on pydantic v1) **comments out** several constraints — TZ-aware datetime regex, several token-shape regexes. It relaxes rules the NIST schema enforces. |
 | **2 — Structural / model-level** | Trestle `AllValidator` chain (Catalog / Duplicates / Refs / Links / RuleParameters), via `assembler._validate_via_trestle_models` | Import/runtime (Stage 4), import-time-cheap | Duplicate UUIDs across observations/findings/parties, broken intra-document `href` refs, shape violations `oscal-pydantic` still enforces | Does **not** validate against the published NIST OSCAL JSON Schema — no required/enum/format/token-regex enforcement from the canonical spec. |
-| **3 — Published NIST JSON Schema** *(new this PR)* | `jsonschema` against the vendored schema, in `tests/test_schema_validation.py` | **CI / pytest only** — deliberately *not* in the assembler import path | Required-property, enum, type, and approximate token-regex constraints the canonical schema enforces and Layers 1–2 relax | (Format caveat — see §11.2.) |
+| **3 — Published NIST JSON Schema** | `jsonschema` via `oscal_pipeline.schemas.validate` | **CI / pytest + CLI emit boundary** — deliberately *not* in the assembler import path | Required-property, enum, type, and approximate token-regex constraints the canonical schema enforces and Layers 1–2 relax | (Format caveat — see §11.2.) |
 
-**Why Layer 3 is CI/pytest-only.** Keeping the published-schema gate out of the assembler import path keeps the library **import-time-cheap**: importing `oscal_pipeline` to build a SAR does not load `jsonschema`, compile the schema, or pay validation cost. The schema gate is a *merge gate*, not a *runtime guarantee*, so it lives where merges are decided — the test job. It ships as **pytest, not a new workflow YAML**: `tests/test_schema_validation.py` runs inside the existing `.github/workflows/test.yaml` step (`pytest --cov-fail-under=80`). A schema-nonconformant SAR fails that step and blocks the merge. The `assembler.py` change in this PR is **docs-only** — the docstring and a `NB` comment now point at the new gate as the schema-strict complement of the Trestle structural pass. No assembler behavior changed.
+**Why Layer 3 stays out of the assembler import path.** Keeping the published-schema validator out of anything `import oscal_pipeline` pulls in keeps the library **import-time-cheap**: importing `oscal_pipeline` to build a SAR does not load `jsonschema`, compile the schema, or pay validation cost. Layer 3 still runs at **emit time** — `oscal-pipeline run` calls `validate_against_vendored_schema` after assemble and before write (fail-closed) — and in **CI** via `tests/test_schema_validation.py` inside the existing `.github/workflows/test.yaml` step (`pytest --cov-fail-under=80`). The reusable module in `oscal_pipeline/schemas/validate.py` replaced the earlier smell where production comments pointed at a test file as the gate. The assembler does not import it; the CLI and tests do.
 
 The SAR the gate validates is **byte-deterministic**: built from the `secret_scanner_mixed.json` fixture, transformed by `SecretScannerAdapter`, assembled with a pinned `RunMetadata` (`run_timestamp=datetime(2026, 6, 5, 12, 0, 0, tzinfo=utc)`). Determinism is the property that makes cross-run SAR diffing (CM-3) work; validating a fixed artifact also means a gate failure is a real regression, never fixture noise.
 
@@ -247,7 +247,7 @@ The SAR the gate validates is **byte-deterministic**: built from the `secret_sca
 
 OSCAL is published as JSON Schema Draft-7, whose `pattern` keyword is specified against **ECMA-262** regex. OSCAL's `token` datatype uses ECMA Unicode-property classes — `\p{L}`, `\p{N}` — that **Python's `re` cannot compile**: a stock `Draft7Validator` raises `re.PatternError: bad escape \p` the moment it hits a token-patterned field. Without a shim there is no Python-side schema gate at all.
 
-`_oscal_pattern_check` (in the test) is a `pattern`-keyword replacement registered via `jsonschema.validators.extend(Draft7Validator, {"pattern": _oscal_pattern_check})`. It translates the two ECMA classes, then compiles and searches with Python `re`:
+`_oscal_pattern_check` (in `oscal_pipeline/schemas/validate.py`) is a `pattern`-keyword replacement registered via `jsonschema.validators.extend(Draft7Validator, {"pattern": _oscal_pattern_check})`. It translates the two ECMA classes, then compiles and searches with Python `re`:
 
 - `\p{L}` → `[^\W\d_]`
 - `\p{N}` → `\d`
@@ -293,7 +293,7 @@ A forgotten bump cannot pass silently: either the file is missing (`FileNotFound
 
 A schema gate is only worth its CI minutes if it can actually go red. Two tests prove this one is not green-no-matter-what:
 
-- **Negative control on a required property.** The test deletes `metadata.oscal-version` (which **is** in the schema's `required` list) from a copy of the emitted SAR and asserts `len(errors) >= 1`. This proves the validator genuinely enforces `required`, rather than passing any well-formed JSON.
+- **Negative control on a required property.** The test deletes `metadata.oscal-version` (which **is** in the schema's `required` list) from a copy of the emitted SAR and asserts `validate_against_vendored_schema` raises `SchemaValidationError`. This proves the validator genuinely enforces `required`, rather than passing any well-formed JSON.
 - **Shim-deletion → loud crash.** The emitted SAR exercises a `\p{}`-patterned token field (a control-id `name` token). A stock `Draft7Validator` with **no** shim would raise `re.PatternError` inside `iter_errors` — so deleting the shim makes the test **crash (CI red)**, not pass silently. The shim's correctness is self-guarding: remove it and the gate fails *loud*.
 
 Both safeguards encode the same repo-wide principle the ingestion registry and severity classifier follow — **fail loud where silence would corrupt the evidence**.
@@ -313,7 +313,7 @@ The lock freeze keeps `pip install --no-deps -r requirements.lock` **complete** 
 | Rejected | Why |
 |----------|-----|
 | **Download the schema at CI time** (fetch from NIST in the workflow) | Introduces a network dependency and SSRF surface into the merge gate, makes the gate non-deterministic across runs (NIST could republish), and breaks offline/air-gapped CI. Vendoring + SHA-pin gives a CM-3-auditable, offline-deterministic artifact instead. |
-| **Run the schema gate in the assembler import path** | Loads `jsonschema` and compiles the 149 KB schema on every `import oscal_pipeline`, paying validation cost on every SAR build. The gate is a *merge* decision, not a *runtime* guarantee — it belongs in the test job (Layer 3 reasoning in §11.1). |
+| **Run the schema gate in the assembler import path** | Loads `jsonschema` and compiles the 149 KB schema on every `import oscal_pipeline`, paying validation cost on every SAR build. Layer 3 belongs at the CLI emit boundary and in CI tests — not on the library import path (§11.1). |
 | **Install dev extras (`pip install -e ".[dev]"`) in CI**, per Issue #20 AC#1 | Raises `ResolutionImpossible`: `compliance-trestle`'s metadata declares `pydantic[email]>=2`, while `oscal-pydantic==2023.3.21` pins `pydantic<2`. A normal resolve cannot satisfy both. CI installs `--no-deps -r requirements.lock` then `-e . --no-deps` instead — trestle imports `from pydantic.v1 import ...` at runtime, so a `pydantic` v1-line pin in the lock works even though the metadata says otherwise. |
 | **A new `.github/workflows/ci.yml`**, per Issue #20 AC#1 | Redundant — the existing `test.yaml` pytest step already runs the full suite as the merge gate. Adding the schema gate *as a test* reuses that gate (one place, one cache, one required check) rather than standing up a parallel workflow. |
 
@@ -327,8 +327,8 @@ The lock freeze keeps `pip install --no-deps -r requirements.lock` **complete** 
 | Framework | Control | How this gate validates it |
 |-----------|---------|-----------------------------|
 | NIST 800-53 Rev 5 | **CA-2** | A schema-conformant SAR is part of the assessment-evidence integrity contract — assessment results are well-formed before they count as evidence. |
-| NIST 800-53 Rev 5 | **AU-12** | Audit records must be schema-conformant when emitted; the gate blocks a non-conformant SAR from merging. |
+| NIST 800-53 Rev 5 | **AU-12** | Audit records must be schema-conformant when emitted; the gate blocks a non-conformant SAR from being written at the CLI emit boundary (exit 1, no artifact) and blocks the canonical sample from merging in CI. |
 | NIST 800-53 Rev 5 | **CM-3** | Vendored schema + SHA pin + `OSCAL_VERSION` pin = an immutable, version-controlled validation artifact; the deterministic in-process SAR makes the gate's verdict reproducible. |
-| NIST 800-53 Rev 5 | **CM-6** | The gate is an automated verification check that runs in CI on every pull request (and pushes to `main`). |
+| NIST 800-53 Rev 5 | **CM-6** | The gate is an automated verification check that runs at the CLI emit boundary on every emitted SAR and in CI on every pull request (and pushes to `main`). |
 | FedRAMP 20x | KSI evidence pillar | A machine-readable SAR that passes the *published* schema is what an assessor / eMASS ingest consumes without a round-trip. |
 | CJIS v6.0 | **AU-6** | The schema-valid SAR is the artifact retained for the 1-year retention + review requirement. |

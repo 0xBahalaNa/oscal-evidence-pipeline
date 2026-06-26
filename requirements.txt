@@ -10,7 +10,7 @@
 # via pydantic.v1 at runtime; we pin pydantic<2 for oscal-pydantic.
 
 compliance-trestle==4.0.3
-# Published NIST OSCAL JSON Schema gate dependency (tests/test_schema_validation.py).
+# Published NIST OSCAL JSON Schema gate (oscal_pipeline/schemas/validate.py; CI + CLI).
 jsonschema>=4.0
 oscal-pydantic==2023.3.21
 # oscal-pydantic 2023.3.21 requires pydantic v1 Field(regex=...); v2 breaks import.

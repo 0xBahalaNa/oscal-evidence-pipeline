@@ -180,10 +180,11 @@ def _validate_via_trestle_models(sar: SecurityAssessmentResultsSAR) -> None:
     This is **structural / model-level** validation only — it parses the
     SAR through Trestle's typed models and runs Trestle's
     ``AllValidator`` chain (Catalog / Duplicates / Refs / Links /
-    RuleParameters).     It is NOT the published NIST OSCAL JSON Schema gate — that gate is
-    its schema-strict complement, implemented in
-    ``tests/test_schema_validation.py`` (runs in CI via the ``test`` job),
-    validating the emitted SAR against the vendored schema at
+    RuleParameters). It is NOT the published NIST OSCAL JSON Schema gate —
+    that gate is its schema-strict complement, implemented in
+    ``oscal_pipeline.schemas.validate.validate_against_vendored_schema``
+    (enforced at the CLI emit boundary and in CI via tests), validating
+    against the vendored schema at
     ``oscal_pipeline/schemas/oscal_assessment-results_schema-<OSCAL_VERSION>.json``;
     that gate catches the format/regex constraints this model-level pass relaxes.
 
@@ -215,9 +216,9 @@ def _validate_via_trestle_models(sar: SecurityAssessmentResultsSAR) -> None:
         # NB: this gates against Trestle's internal model validators
         # (Catalog / Duplicates / Refs / Links / RuleParameters). It does
         # NOT validate against the published NIST OSCAL JSON Schema — that
-        # gate lives in ``tests/test_schema_validation.py`` (CI ``test`` job)
-        # so the assembler stays import-time-cheap while CI still enforces
-        # the vendored NIST schema before evidence ships.
+        # gate is ``oscal_pipeline.schemas.validate.validate_against_vendored_schema``
+        # (enforced at the CLI emit boundary and in CI via tests). The assembler
+        # stays import-time-cheap; the CLI imports the validator, not this module.
         raise SarValidationError(
             f"assembled SAR failed Trestle validation: {validator.error_msg()}"
         )
