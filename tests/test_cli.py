@@ -22,6 +22,7 @@ from oscal_pipeline.cli import (
     _run_pipeline,
     main,
 )
+from oscal_pipeline.schemas.validate import SchemaValidationError
 
 
 _FIXTURE_DIR = Path(__file__).parent / "fixtures" / "secret-scanner-output"
@@ -174,6 +175,29 @@ def test_main_exits_1_for_validation_failure(
             )
     assert exc_info.value.code == EXIT_VALIDATION
     assert "bad SAR" in caplog.text
+
+
+def test_main_exits_1_and_writes_nothing_when_schema_validation_fails(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with patch(
+        "oscal_pipeline.cli.validate_against_vendored_schema",
+        side_effect=SchemaValidationError("schema fail"),
+    ):
+        with pytest.raises(SystemExit) as exc_info:
+            main(
+                [
+                    "run",
+                    "--input-dir",
+                    str(_FIXTURE_DIR),
+                    "--output",
+                    str(tmp_path),
+                ]
+            )
+    assert exc_info.value.code == EXIT_VALIDATION
+    assert "schema fail" in caplog.text
+    assert list(tmp_path.glob("assessment-results-*.json")) == []
 
 
 def test_main_exits_1_for_ambiguous_adapters(

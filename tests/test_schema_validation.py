@@ -9,56 +9,25 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 from copy import deepcopy
 from datetime import datetime, timezone
 from importlib import resources
 from pathlib import Path
 
-import jsonschema
+import pytest
 
 import oscal_pipeline
 from oscal_pipeline.adapters.secret_scanner import SecretScannerAdapter
 from oscal_pipeline.assembler import OSCAL_VERSION, RunMetadata, assemble, serialize_sar
+from oscal_pipeline.schemas.validate import (
+    SchemaValidationError,
+    _build_oscal_validator,
+    _load_vendored_schema,
+    validate_against_vendored_schema,
+)
 
 _SCHEMA_SHA256 = "4f9e277a177adbcca9527612ce450a33dc6096773fa229d413d801d196c61985"
 _FIXTURE = Path(__file__).parent / "fixtures" / "secret_scanner_mixed.json"
-
-
-# OSCAL's ``token`` datatype uses ECMA-262 ``\p{L}`` / ``\p{N}`` Unicode-property
-# classes that Python ``re`` cannot compile (``re.PatternError: bad escape \p``).
-# Approximate the two classes jsonschema hits and skip anything still untranslatable
-# rather than crashing the CI gate — see ARCHITECTURE §11 for the fidelity caveat.
-def _oscal_pattern_check(validator, pattern, instance, schema):
-    if not validator.is_type(instance, "string"):
-        return
-
-    translated = pattern.replace(r"\p{L}", r"[^\W\d_]").replace(r"\p{N}", r"\d")
-
-    try:
-        compiled = re.compile(translated)
-    except re.error:
-        return
-
-    if compiled.search(instance) is None:
-        yield jsonschema.ValidationError(
-            f"{instance!r} does not match {pattern!r}"
-        )
-
-
-def _load_vendored_schema() -> dict:
-    schema_name = f"oscal_assessment-results_schema-{OSCAL_VERSION}.json"
-    schema_path = resources.files("oscal_pipeline.schemas") / schema_name
-    return json.loads(schema_path.read_text(encoding="utf-8"))
-
-
-def _build_oscal_validator(schema: dict) -> jsonschema.protocols.Validator:
-    """Build a Draft-7 validator that survives OSCAL's ECMA ``\\p{}`` patterns."""
-    oscal_draft7 = jsonschema.validators.extend(
-        jsonschema.Draft7Validator,
-        {"pattern": _oscal_pattern_check},
-    )
-    return oscal_draft7(schema, format_checker=jsonschema.FormatChecker())
 
 
 def _build_sample_sar_doc(raw: dict | None = None) -> dict:
@@ -78,15 +47,13 @@ def _build_sample_sar_doc(raw: dict | None = None) -> dict:
 
 def test_sample_sar_validates_against_oscal_schema() -> None:
     """Mixed-severity SAR from the secret-scanner fixture passes the NIST schema."""
-    schema = _load_vendored_schema()
-    validator = _build_oscal_validator(schema)
     sar_doc = _build_sample_sar_doc()
-
-    assert list(validator.iter_errors(sar_doc)) == []
+    validate_against_vendored_schema(sar_doc)
 
     bad_doc = deepcopy(sar_doc)
     del bad_doc["assessment-results"]["metadata"]["oscal-version"]
-    assert len(list(validator.iter_errors(bad_doc))) >= 1
+    with pytest.raises(SchemaValidationError):
+        validate_against_vendored_schema(bad_doc)
 
 
 def test_all_pass_sar_validates_against_oscal_schema() -> None:
