@@ -1,0 +1,10 @@
+%% Editable Mermaid source for the README "Architecture Overview" section.
+%% Keep this file in sync with the inline ```mermaid fence in README.md.
+%% Diff-able source of truth for the architecture graph (no separate PNG export).
+graph LR
+    A[Audit tools<br/>s3 / sg / cloudtrail<br/>secret-scanner / evidence-logger] --> B[Ingest + adapt<br/>native JSON]
+    B --> C[Transform<br/>oscal-pydantic models]
+    C --> D[Assemble + validate<br/>Trestle + NIST schema]
+    D --> E[OSCAL SAR JSON]
+    E --> F[FedRAMP 20x<br/>CA-7 continuous monitoring]
+    E --> G[CJIS v6.0<br/>AU-6 weekly review]
