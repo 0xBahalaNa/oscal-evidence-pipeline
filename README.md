@@ -14,10 +14,19 @@ Built on **IBM Compliance Trestle** (orchestration / CLI workflow) and **oscal-p
 
 > **Status:** Phase 1 in development. v1.0 ships SAR generation from existing portfolio audit tools. POA&M (v1.1) and Component Definitions (v1.2) follow.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/oscal-evidence-pipeline-dark.png">
-  <img alt="OSCAL Evidence Pipeline architecture: five Python audit tools feed the pipeline (IBM Compliance Trestle for orchestration, oscal-pydantic for typed model transform), which validates against the NIST OSCAL JSON Schema before emitting OSCAL SAR JSON for two consumers — FedRAMP 20x assessors (CA-7 continuous monitoring) and CJIS v6.0 weekly review (AU-6, 1-year retention)." src="assets/oscal-evidence-pipeline-light.png">
-</picture>
+## Architecture Overview
+
+```mermaid
+graph LR
+    A[Audit tools<br/>s3 / sg / cloudtrail<br/>secret-scanner / evidence-logger] --> B[Ingest + adapt<br/>native JSON]
+    B --> C[Transform<br/>oscal-pydantic models]
+    C --> D[Assemble + validate<br/>Trestle + NIST schema]
+    D --> E[OSCAL SAR JSON]
+    E --> F[FedRAMP 20x<br/>CA-7 continuous monitoring]
+    E --> G[CJIS v6.0<br/>AU-6 weekly review]
+```
+
+Five portfolio audit tools emit native JSON findings. The pipeline ingests and adapts that JSON, transforms it into typed OSCAL models (oscal-pydantic), then assembles and validates an Assessment Results (SAR) document with IBM Compliance Trestle against the published NIST OSCAL JSON Schema. The SAR feeds FedRAMP 20x continuous-monitoring consumers and CJIS v6.0 weekly review / retention. See [ARCHITECTURE.md](ARCHITECTURE.md) for stage detail.
 
 ## Why This Exists
 

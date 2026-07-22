@@ -14,45 +14,28 @@ By keeping audit tools focused on detection (their own native JSON) and centrali
 
 ## 2. Pipeline Overview
 
+```mermaid
+graph TD
+    subgraph Upstream["Upstream — Source Audit Tools"]
+        S3[s3-audit]
+        SG[sg-audit]
+        CT[cloudtrail-audit]
+        SS[secret-scanner]
+    end
+    S3 --> N[native JSON findings]
+    SG --> N
+    CT --> N
+    SS --> N
+    N --> I["Stage 2 — Ingestion<br/>read JSON, detect schema"]
+    I --> T["Stage 3 — Transformation<br/>per-tool adapters → oscal-pydantic"]
+    T --> A["Stage 4 — SAR Assembly<br/>Trestle assemble + schema validate"]
+    A --> SAR["assessment-results-YYYY-MM-DD.json<br/>validated SAR"]
+    SAR --> EL[evidence-logger retention]
+    SAR --> CM[aws-config-compliance-monitor]
+    SAR --> CR[compliance-report dashboard]
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│                    Upstream — Source Audit Tools                    │
-│  ┌───────────┐  ┌─────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  │ s3-audit  │  │ sg-audit│  │cloudtrail-   │  │secret-scanner│    │
-│  │           │  │         │  │  audit       │  │              │    │
-│  └─────┬─────┘  └────┬────┘  └──────┬───────┘  └──────┬───────┘    │
-│        │             │              │                  │            │
-│        └─────────────┴──────┬───────┴──────────────────┘            │
-│                             │ native JSON findings                  │
-└─────────────────────────────┼──────────────────────────────────────┘
-                              │
-                              ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                     OSCAL Evidence Pipeline                         │
-│                                                                     │
-│  ┌─────────────┐   ┌───────────────┐   ┌──────────────────────┐    │
-│  │ Stage 2     │   │ Stage 3       │   │ Stage 4              │    │
-│  │ Ingestion   │──▶│ Transformation│──▶│ SAR Assembly         │    │
-│  │ (read JSON, │   │ (per-tool     │   │ (Trestle assemble +  │    │
-│  │  detect     │   │  adapters →   │   │  schema validate)    │    │
-│  │  schema)    │   │  oscal-       │   │                      │    │
-│  │             │   │  pydantic     │   │                      │    │
-│  │             │   │  models)      │   │                      │    │
-│  └─────────────┘   └───────────────┘   └──────────┬───────────┘    │
-│                                                    │                │
-└────────────────────────────────────────────────────┼────────────────┘
-                                                     │
-                                                     ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                  Stage 5 — Output & Downstream                      │
-│                                                                     │
-│  ┌──────────────────────┐  ┌──────────────────────────────────┐    │
-│  │ assessment-results-  │  │ evidence-logger (retention)       │    │
-│  │ YYYY-MM-DD.json      │  │ aws-config-compliance-monitor     │    │
-│  │ (validated SAR)      │  │ compliance-report (dashboard)     │    │
-│  └──────────────────────┘  └──────────────────────────────────┘    │
-└────────────────────────────────────────────────────────────────────┘
-```
+
+The [README Architecture Overview](README.md#architecture-overview) is the GitHub-facing summary (five portfolio tools → ingest/adapt → oscal-pydantic → Trestle + NIST schema → SAR → FedRAMP 20x / CJIS consumers). This diagram is the stage-level view: four detection tools as Stage-1 sources, Stages 2–4 inside this repo, and Stage-5 consumers (including `evidence-logger` for retention). `evidence-logger` also has a distinct upstream ingest path when wrapping an existing artifact — see §6.
 
 **Stage 1** (source audit-tool execution) is upstream and out of scope for this repo. Stages 2–5 are this repo.
 
