@@ -12,7 +12,7 @@ I transform compliance findings from my existing audit tools (`s3-audit`, `sg-au
 
 Built on IBM Compliance Trestle (orchestration / CLI) and oscal-pydantic (typed transform of audit-tool JSON into OSCAL models).
 
-> **Status:** Phase 1 in development. v1.0 ships SAR generation from the portfolio audit tools. POA&M (v1.1) and Component Definitions (v1.2) come later.
+> **Status:** v1.0 shipped 2026-06-15 — SAR generation from the portfolio audit tools. POA&M (v1.1) and Component Definitions (v1.2) come later.
 
 ## Architecture Overview
 
