@@ -4,11 +4,11 @@
 ![OSCAL](https://img.shields.io/badge/OSCAL-Assessment%20Results-1c5b94?style=flat)
 ![NIST 800-53](https://img.shields.io/badge/NIST-800--53%20Rev%205-004990?style=flat)
 ![FedRAMP](https://img.shields.io/badge/FedRAMP-High%20Baseline-0071bc?style=flat)
-![CJIS](https://img.shields.io/badge/CJIS-Security%20Policy%20v6.0-cc0000?style=flat)
+![CJIS](https://img.shields.io/badge/CJIS-Security%20Policy%20v6.1-cc0000?style=flat)
 
 # OSCAL Evidence Pipeline
 
-I transform compliance findings from my existing audit tools (`s3-audit`, `sg-audit`, `cloudtrail-audit`, `secret-scanner`, `evidence-logger`) into OSCAL Assessment Results (SAR) JSON. That is the machine-readable evidence format FedRAMP 20x wants, and what federal assessors increasingly expect for FedRAMP High and CJIS v6.0 packages.
+I transform compliance findings from my existing audit tools (`s3-audit`, `sg-audit`, `cloudtrail-audit`, `secret-scanner`, `evidence-logger`) into OSCAL Assessment Results (SAR) JSON. That is the machine-readable evidence format FedRAMP 20x wants, and what federal assessors increasingly expect for FedRAMP High and CJIS v6.1 packages.
 
 Built on IBM Compliance Trestle (orchestration / CLI) and oscal-pydantic (typed transform of audit-tool JSON into OSCAL models).
 
@@ -23,10 +23,10 @@ graph LR
     C --> D[Assemble + validate<br/>Trestle + NIST schema]
     D --> E[OSCAL SAR JSON]
     E --> F[FedRAMP 20x<br/>CA-7 continuous monitoring]
-    E --> G[CJIS v6.0<br/>AU-6 weekly review]
+    E --> G[CJIS v6.1<br/>AU-6 weekly review]
 ```
 
-Five portfolio audit tools emit native JSON findings. The pipeline ingests and adapts that JSON, transforms it into typed OSCAL models (oscal-pydantic), then assembles and validates an Assessment Results (SAR) document with IBM Compliance Trestle against the published NIST OSCAL JSON Schema. The SAR feeds FedRAMP 20x continuous-monitoring consumers and CJIS v6.0 weekly review / retention. See [ARCHITECTURE.md](ARCHITECTURE.md) for stage detail.
+Five portfolio audit tools emit native JSON findings. The pipeline ingests and adapts that JSON, transforms it into typed OSCAL models (oscal-pydantic), then assembles and validates an Assessment Results (SAR) document with IBM Compliance Trestle against the published NIST OSCAL JSON Schema. The SAR feeds FedRAMP 20x continuous-monitoring consumers and CJIS v6.1 weekly review / retention. See [ARCHITECTURE.md](ARCHITECTURE.md) for stage detail.
 
 ## Why This Exists
 
@@ -42,7 +42,7 @@ audit tool runs → emits structured JSON → pipeline transforms → OSCAL SAR 
 
 This pipeline is a meta-tool. It does not satisfy access controls directly. It satisfies the assessment, monitoring, and audit-record-generation controls that govern how compliance evidence is produced and preserved.
 
-| NIST 800-53 Rev 5 | FedRAMP High | CJIS v6.0 | How This Pipeline Validates |
+| NIST 800-53 Rev 5 | FedRAMP High | CJIS v6.1 | How This Pipeline Validates |
 |--------------------|:------------:|:---------:|-------------------|
 | CA-2 Control Assessments | Yes | - | Produces the OSCAL SAR artifact that documents each assessment cycle |
 | CA-7 Continuous Monitoring | Yes | - | Runs per audit-tool execution; produces a timestamped SAR for each cycle |
@@ -54,7 +54,7 @@ This pipeline is a meta-tool. It does not satisfy access controls directly. It s
 
 ## How an Auditor Uses This Output
 
-An assessor reviewing a FedRAMP High or CJIS v6.0 authorization package can consume the SAR JSON directly. Each emitted SAR passes Trestle's structural model validation and the published NIST OSCAL JSON Schema gate before write. The canonical sample SAR is also checked in CI on every pull request and on pushes to `main`.
+An assessor reviewing a FedRAMP High or CJIS v6.1 authorization package can consume the SAR JSON directly. Each emitted SAR passes Trestle's structural model validation and the published NIST OSCAL JSON Schema gate before write. The canonical sample SAR is also checked in CI on every pull request and on pushes to `main`.
 
 Each SAR `observation` maps one-to-one to an NIST 800-53A assessment objective. Example: an `s3-audit` finding of "BucketX failed encryption check" becomes an OSCAL observation with `relevant-evidence` pointing to the source tool, `subjects` referencing the bucket, and `props` carrying the mapped control IDs (`sc-28`, `sc-28.1`). The assessor's adequacy determination (satisfied / other-than-satisfied) is the OSCAL `finding` object.
 
@@ -70,9 +70,9 @@ FedRAMP 20x (Pilot launched March 2025, High pilot FY26 Q4) restructures the pro
 - **API-driven**: The pipeline is a library + CLI. I can invoke it from CI/CD, from a scheduled job, or from an evidence orchestrator (for example, on every CloudTrail event that indicates an audit-tool re-run).
 - **30-day vs 90-day review window**: FedRAMP 20x machine-readable packages get a 30-day review SLA versus 90 days for traditional packages. The SAR output is the unit of input to that 30-day review.
 
-## CJIS v6.0 Relevance
+## CJIS v6.1 Relevance
 
-CJIS Security Policy v6.0 (published Dec 27, 2024) aligns to NIST 800-53 Rev 5 and phases in rather than flipping on a single date. v5.9.5 was the scored audit standard through March 31, 2026. v6.0 is the default audit baseline from April 1, 2026, with modernized Priority 2-4 controls fully enforceable Oct 1, 2027 (timing varies by state CSA).
+CJIS Security Policy v6.1 (released June 25, 2026) is the current policy, aligned with NIST 800-53 Rev 5. v6.x has been the default audit baseline since April 1, 2026 (v5.9.5 sunset March 31, 2026); modernized Priority 2-4 controls are fully enforceable Oct 1, 2027 (timing varies by state CSA).
 
 The material delta this pipeline supports is AU-6: agencies handling CJI must retain audit records for 1 year and conduct weekly review of those records. The SAR JSON is the artifact I retain for that 1-year window and the input to that weekly review. A reviewer can read it without going back to the raw CloudTrail / IAM policy / S3 audit output.
 

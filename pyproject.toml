@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "oscal-pipeline"
 version = "0.1.0"
-description = "Transform compliance audit-tool output into OSCAL Assessment Results (SAR) JSON for FedRAMP 20x and CJIS v6.0 evidence packages."
+description = "Transform compliance audit-tool output into OSCAL Assessment Results (SAR) JSON for FedRAMP 20x and CJIS v6.1 evidence packages."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

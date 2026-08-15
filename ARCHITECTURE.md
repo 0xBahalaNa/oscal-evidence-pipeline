@@ -314,4 +314,4 @@ The lock freeze keeps `pip install --no-deps -r requirements.lock` **complete** 
 | NIST 800-53 Rev 5 | **CM-3** | Vendored schema + SHA pin + `OSCAL_VERSION` pin = an immutable, version-controlled validation artifact; the deterministic in-process SAR makes the gate's verdict reproducible. |
 | NIST 800-53 Rev 5 | **CM-6** | The gate is an automated verification check that runs at the CLI emit boundary on every emitted SAR and in CI on every pull request (and pushes to `main`). |
 | FedRAMP 20x | KSI evidence pillar | A machine-readable SAR that passes the *published* schema is what an assessor / eMASS ingest consumes without a round-trip. |
-| CJIS v6.0 | **AU-6** | The schema-valid SAR is the artifact retained for the 1-year retention + review requirement. |
+| CJIS v6.1 | **AU-6** | The schema-valid SAR is the artifact retained for the 1-year retention + review requirement. |
