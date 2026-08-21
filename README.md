@@ -45,11 +45,10 @@ This pipeline is a meta-tool. It does not satisfy access controls directly. It s
 | NIST 800-53 Rev 5 | FedRAMP High | CJIS v6.1 | How This Pipeline Validates |
 |--------------------|:------------:|:---------:|-------------------|
 | CA-2 Control Assessments | Yes | - | Produces the OSCAL SAR artifact that documents each assessment cycle |
-| CA-7 Continuous Monitoring | Yes | - | Runs per audit-tool execution; produces a timestamped SAR for each cycle |
+| CA-7 Continuous Monitoring | Yes | - | Produces the per-cycle SAR artifact a monitoring program consumes; scheduling the cycles lives outside this pipeline |
 | AU-3 Content of Audit Records | Yes | - | Preserves timestamp, source tool, finding type, mapped control IDs in every SAR observation |
 | AU-12 Audit Record Generation | Yes | - | Wraps audit-tool outputs into a generated record. Trestle-structural-validated and gated against the published NIST OSCAL JSON Schema at the emit boundary (and in CI) |
-| SI-4 System Monitoring | Yes | - | SAR output feeds continuous monitoring dashboards and KSI metric pipelines |
-| CM-3 Configuration Change Control | Yes | - | Every pipeline run produces a versioned, immutable evidence artifact (timestamped filename, deterministic content) |
+| CM-3 Configuration Change Control | Yes | - | Deterministic observation UUIDs (uuid5 over stable identity) and sorted ingest order make two SARs from different runs meaningfully diffable: the same input reproduces the same observation, finding, and subject UUIDs, so only assessment timestamps and the two timestamp-seeded document UUIDs differ between runs |
 | CA-2, CA-7, AU-12 | Yes | 1-year retention, weekly review | SAR JSON is the artifact retained for the CJIS AU-6 weekly review |
 
 ## How an Auditor Uses This Output
