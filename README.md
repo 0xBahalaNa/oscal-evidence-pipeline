@@ -38,6 +38,12 @@ This repo is the transformation layer between those operational audit tools and 
 audit tool runs → emits structured JSON → pipeline transforms → OSCAL SAR JSON → assessor / dashboard / Trestle assemble
 ```
 
+## Impact
+
+Without this layer, every finding from five audit tools gets hand-mapped into an SAR entry: read the tool's JSON, decide which OSCAL observation fields it fills, transcribe, repeat per finding, per tool, per assessment cycle. Each transcription is a chance to drop a control ID or mistype a timestamp, and the resulting document is only as consistent as the person who assembled it that day.
+
+With the pipeline, transcription is zero for an adapted tool. v1.0 ships the `secret-scanner` adapter; the other four land as each upstream adds structured JSON output, so each new tool is one adapter, not a new manual process. Findings become schema-validated OSCAL observations mechanically, every SAR passes the same three validation layers before it exists, and deterministic UUIDs make two SARs from different runs diffable. The program-level number is FedRAMP's own: machine-readable packages get a 30-day review SLA against 90 days for traditional ones. This pipeline produces the input format that 30-day track expects.
+
 ## Compliance Controls Addressed
 
 This pipeline is a meta-tool. It does not satisfy access controls directly. It satisfies the assessment, monitoring, and audit-record-generation controls that govern how compliance evidence is produced and preserved.
