@@ -8,9 +8,12 @@
 
 # OSCAL Evidence Pipeline
 
-I transform compliance findings from my existing audit tools (`s3-audit`, `sg-audit`, `cloudtrail-audit`, `secret-scanner`, `evidence-logger`) into OSCAL Assessment Results (SAR) JSON. That is the machine-readable evidence format FedRAMP 20x wants, and what federal assessors increasingly expect for FedRAMP High and CJIS v6.1 packages.
+**Hand-assembled Word and PDF assessment results are the slowest step of an authorization package, and FedRAMP 20x is moving the evidence format to machine-readable OSCAL. A vendor whose audit tools still emit plaintext logs pays for the transcription every cycle.** This pipeline turns audit-tool findings into OSCAL Assessment Results (SAR) JSON an assessor or a continuous-monitoring consumer can read without a human in the middle.
 
-Built on IBM Compliance Trestle (orchestration / CLI) and oscal-pydantic (typed transform of audit-tool JSON into OSCAL models).
+- Five portfolio audit tools (`s3-audit`, `sg-audit`, `cloudtrail-audit`, `secret-scanner`, `evidence-logger`) emit native JSON; the pipeline adapts, transforms, assembles, and validates it against the published NIST OSCAL schema
+- Output feeds FedRAMP 20x continuous monitoring (CA-7) and CJIS v6.1 weekly audit review (AU-6)
+- NIST 800-53 Rev 5 / FedRAMP High / CJIS v6.1
+- IBM Compliance Trestle for orchestration, oscal-pydantic for the typed transform
 
 > **Status:** v1.0 shipped 2026-06-15. SAR generation from the portfolio audit tools. POA&M (v1.1) and Component Definitions (v1.2) come later.
 
