@@ -68,8 +68,9 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           allowed_bots: "cursor"
+          # Rules adapted from ponytail (github.com/dietrichgebert/ponytail, MIT).
           claude_args: |
-            --max-turns 30
+            --max-turns 40
             --allowedTools "Read,Grep,Glob,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*),Bash(gh pr comment:*)"
           prompt: |
             REPO: ${{ github.repository }}
@@ -79,29 +80,40 @@ jobs:
             checked out in the working directory. The audit is non-blocking.
             Do not edit files, commit, push, approve, request changes, merge, close, or
             label anything. The only write is one PR comment.
-            ${{ case(steps.prior.outputs.count == '1', format('This is round 2. A round 1 comment was created at {0}. Review only commits pushed after that comment. Run `gh pr view <N> --json commits` and keep a commit only when its committedDate is strictly later than that timestamp. Apply every section below only to those commits. Do not file a finding that is only about an earlier commit. If no commit is later than that timestamp, post one comment and set the Real section to "No real findings." Do not edit the round 1 comment.', steps.prior.outputs.created_at), '') }}
+            ${{ case(steps.prior.outputs.count == '1', format('This is round 2. A round 1 comment was created at {0}. Review only commits pushed after that comment. Run `gh pr view <N> --json commits` and keep a commit only when its committedDate is strictly later than that timestamp. Apply every section below only to those commits. Do not file a finding that is only about an earlier commit. If no commit is later than that timestamp, post one comment and write "No real findings." Do not edit the round 1 comment.', steps.prior.outputs.created_at), '') }}
             1. Scope. Run `gh pr view <N> --json title,body,headRefName,files` and
                `gh pr diff <N>`. Find the issue (`Closes #M` in the body) and read it with
                `gh issue view <M>`. Its acceptance criteria are the scope. Flag, as findings:
                no `Closes #M`; `Closes #M` on a diff that ships only part of the criteria;
                files changed that the issue never asked for.
 
-            2. Review the diff for:
+            2. Understand first. Read the callers of every changed function, the tests,
+               and the README, not only the diff. A change can break code it does not touch.
+
+            3. Review the diff for:
                - Correctness: empty input, one item, a missing key, malformed input. Each
                  gives a defined result or fails loudly naming the file or key.
                - Claims versus code: every statement in the PR body, README, or comments
                  matches what the code does.
-               - Simplicity: robustness nobody asked for, an abstraction before the third
-                 repetition, or decorators, generators, functools, itertools, authored
-                 context managers, async, or walrus with no stated reason. Name the simpler
-                 replacement.
+               - Lean: delete (dead code, unused options, speculative features), reuse (the
+                 repo already has this helper; name the path), stdlib (a new dependency for
+                 a few lines), yagni (abstraction with one implementation, config nobody
+                 sets), merge (near-copies that must change together). Decorators, generators,
+                 functools, itertools, authored context managers, async, or walrus with no
+                 stated reason stay on the vocabulary floor. Name the simpler replacement.
+               - Missing test: risky new logic (a branch, a parser, a security check, a
+                 data write, a bug fix) with no test that fails when it breaks. One good
+                 test, not coverage.
                - Secrets and data: no credential, token, internal hostname, local path, or
                  real customer, agency, or employer data.
                - Private files: CLAUDE.md, AGENTS.md, DEMO-NOTES.md, .cursor/, or
                  build-spec.md must not appear in the diff.
+               Every real finding names the smallest fix, preferring a fix that deletes
+               code.
+               A "shortcut: <limit>, <when to upgrade>" comment is a decision, not a finding.
                You cannot run commands here beyond gh. Do not claim a test passed.
 
-            3. Control accuracy, on the diff plus any README or docs change:
+            4. Control accuracy, on the diff plus any README or docs change:
                - G-1 Every control ID is real in the named framework and revision (NIST
                  800-53 Rev 5, ISO 27001:2022 Annex A, SOC 2 TSC, CJIS v6.x). Not certain
                  means unclear. Never grade from a guess.
@@ -112,19 +124,27 @@ jobs:
                  never invented at runtime.
                - G-5 Known gaps show up in the tool's own output, not only the README.
 
-            4. Filter. A finding must be statable in one sentence as "here is the input,
-               here is what breaks." Drop anything that is not. Label survivors real (send
-               back to Cursor) or unclear (needs Luigi's call). Count drops as noise.
+            5. Filter. A finding must be statable in one sentence as "here is the input,
+               here is what breaks." Drop anything that is not. Group survivors as Must
+               fix, Should fix, or Nice to have. Must fix and Should fix count as real.
+               Nice to have counts as noise. Unclear stays unclear and needs Luigi's call.
+               Count drops as noise.
 
-            5. Post the comment once with `gh pr comment <N> --body "<comment>"`.
+            6. Post the comment once with `gh pr comment <N> --body "<comment>"`.
                Do not start it with @cursor.
                Use this shape:
 
                <!-- claude-ci-review -->
                **PR audit (Claude CI)** · real X · unclear Y · noise Z
 
-               **Real**
-               1. [G-3] README.md:42 — what breaks. Done looks like: ...
+               **Must fix**
+               1. [G-3] README.md:42 — what breaks. Smallest fix: ...
+
+               **Should fix**
+               1. <finding>. Smallest fix: ...
+
+               **Nice to have**
+               - <item>
 
                **Unclear**
                1. <finding> — <the question Luigi needs to answer>
@@ -135,4 +155,6 @@ jobs:
                Report only. Nothing here blocks a merge.
 
                Rubric ID first when one fits, then file:line. If nothing real survives,
-               write "No real findings." A clean audit is a valid result.
+               write "No real findings." A clean audit is a valid result. Omit the Lean
+               line when no lean finding exists. When one exists, that line is the last
+               line of the comment.
