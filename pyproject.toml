@@ -34,6 +34,9 @@ classifiers = [
 dependencies = [
     "compliance-trestle~=4.0",
     "jsonschema~=4.23",
+    # jsonschema registers date-time, uri, and uri-reference when these import.
+    "rfc3339-validator~=0.1.4",
+    "rfc3987~=1.3.8",
     "oscal-pydantic==2023.3.21",
 ]
 
