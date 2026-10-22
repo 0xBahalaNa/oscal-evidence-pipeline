@@ -14,7 +14,9 @@ compliance-trestle==4.0.3
 jsonschema>=4.0
 oscal-pydantic==2023.3.21
 # oscal-pydantic 2023.3.21 requires pydantic v1 Field(regex=...); v2 breaks import.
-pydantic>=1.10.13,<2
+# trestle 4.0.3 imports pydantic.v1.fields; that import first works in 1.10.16
+# (1.10.15's pydantic.v1 is a module, not a package, so the submodule import fails).
+pydantic>=1.10.16,<2
 pytest==8.4.2
 pytest-cov==6.3.0
 mypy==1.20.2
