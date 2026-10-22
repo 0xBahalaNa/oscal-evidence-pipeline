@@ -79,6 +79,45 @@ def test_all_pass_sar_validates_against_oscal_schema() -> None:
     assert list(validator.iter_errors(sar_doc)) == []
 
 
+def test_schema_gate_rejects_pattern_legal_formats() -> None:
+    """Reject date-time, uri, and uri-reference values the OSCAL pattern accepts.
+
+    ``19-02-29T12:00:00Z`` matches ``DateTimeWithTimezoneDatatype`` and fails
+    RFC 3339. ``https://example.com/bad path`` matches ``URIDatatype``.
+    ``import-ap.href`` is format-only, and ``https://example.com/bad ref``
+    is not a URI-reference.
+    """
+    sar_doc = _build_sample_sar_doc()
+
+    bad_date = deepcopy(sar_doc)
+    metadata = bad_date["assessment-results"]["metadata"]
+    assert "last-modified" in metadata
+    metadata["last-modified"] = "19-02-29T12:00:00Z"
+    with pytest.raises(SchemaValidationError):
+        validate_against_vendored_schema(bad_date)
+
+    good_uri = deepcopy(sar_doc)
+    good_result = good_uri["assessment-results"]["results"][0]
+    good_prop = good_result["observations"][0]["props"][0]
+    assert "name" in good_prop and "value" in good_prop
+    good_prop["ns"] = "https://example.com/ns"
+    validate_against_vendored_schema(good_uri)
+
+    bad_uri = deepcopy(sar_doc)
+    bad_result = bad_uri["assessment-results"]["results"][0]
+    bad_prop = bad_result["observations"][0]["props"][0]
+    bad_prop["ns"] = "https://example.com/bad path"
+    with pytest.raises(SchemaValidationError):
+        validate_against_vendored_schema(bad_uri)
+
+    bad_ref = deepcopy(sar_doc)
+    import_ap = bad_ref["assessment-results"]["import-ap"]
+    assert "href" in import_ap
+    import_ap["href"] = "https://example.com/bad ref"
+    with pytest.raises(SchemaValidationError):
+        validate_against_vendored_schema(bad_ref)
+
+
 def test_schema_version_matches_oscal_version() -> None:
     """Vendored schema ``$id`` must track ``OSCAL_VERSION`` (AC#6 drift tripwire)."""
     schema = _load_vendored_schema()
