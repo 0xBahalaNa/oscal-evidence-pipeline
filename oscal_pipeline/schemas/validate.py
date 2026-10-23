@@ -1,8 +1,8 @@
 """Published NIST OSCAL JSON Schema validation (Layer 3).
 
-Reusable validator lifted from the CI gate so the CLI emit boundary can enforce
-schema conformance on every operator-emitted SAR without pulling ``jsonschema``
-into the ``import oscal_pipeline`` path. See ARCHITECTURE §11.
+``writer.write`` lazy-imports this module and runs it on the bytes about to
+be emitted. This module is not on the ``import oscal_pipeline`` path. See
+ARCHITECTURE §11.
 """
 
 from __future__ import annotations
@@ -77,5 +77,9 @@ def validate_against_vendored_schema(sar_doc: dict[str, Any]) -> None:
     errors = list(validator.iter_errors(sar_doc))
 
     if errors:
-        messages = "; ".join(error.message for error in errors)
-        raise SchemaValidationError(messages)
+        # error.message names the broken value. Prefix the JSON path so
+        # the operator can see which field failed.
+        parts: list[str] = []
+        for error in errors:
+            parts.append(f"{error.json_path}: {error.message}")
+        raise SchemaValidationError("; ".join(parts))

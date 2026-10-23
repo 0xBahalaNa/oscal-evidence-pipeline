@@ -225,7 +225,7 @@ Re-run the pipeline on the same input and every observation, finding, and subjec
 - SSP skeleton generation from a Profile + Component Definition set (v2.0)
 - KSI metric extraction from cross-run SAR diffs (v2.0)
 - S3 archival of SAR JSON with Object Lock for CJIS AU-6 1-year retention
-- Extend the published-schema CI test coverage beyond the canonical secret-scanner sample to a fixture per source audit tool. *(Operator-runtime output is already schema-validated at the CLI emit boundary, and the canonical sample in CI, as of #42. What remains is broadening the CI fixture set.)*
+- Extend the published-schema CI test coverage beyond the canonical secret-scanner sample to a fixture per source audit tool. *(Operator-runtime output is schema-validated inside `write()` on every emit, and the canonical sample stays validated in CI, as of #42. What remains is broadening the CI fixture set.)*
 
 ## Framework Reference
 
