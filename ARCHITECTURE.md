@@ -286,7 +286,7 @@ Both safeguards encode the same repo-wide principle the ingestion registry and s
 The gate adds one direct dependency, pinned across the repo's three-layer dependency model:
 
 - `pyproject.toml`: `jsonschema~=4.23` (compatible-release **contract**).
-- `requirements.txt`: `jsonschema>=4.0` (direct **intent**). *Known nit:* this floor is looser than the `pyproject` `~=4.23` contract and looser than this file's own `==`/floor-plus-ceiling convention; tighten to `>=4.23` (or `==4.23.0`). Non-blocking, the lock pins it anyway.
+- `requirements.txt`: `jsonschema>=4.23` (direct **intent**). Floor matches the `pyproject` `~=4.23` contract.
 - `requirements.lock`: full transitive freeze: `jsonschema==4.23.0`, `jsonschema-specifications==2025.9.1`, `referencing==0.37.0`, `rpds-py==2026.5.1` (`attrs==26.1.0`, `importlib_resources==7.1.0` already present).
 
 The lock freeze keeps `pip install --no-deps -r requirements.lock` **complete**: under `--no-deps` a missing transitive becomes a runtime `ModuleNotFoundError`, not a resolver error. This is the same lock-completeness mechanic documented in the vault note *The --no-deps Lockfile Install Strategy*; see it for the full rationale.
