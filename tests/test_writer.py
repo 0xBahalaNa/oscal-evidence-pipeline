@@ -152,6 +152,21 @@ def test_write_rejects_nonconformant_sar_before_creating_output_dir(
     assert list(tmp_path.rglob("assessment-results-*.json")) == []
 
 
+def test_write_schema_error_names_the_offending_field(
+    tmp_path: Path,
+    assembled_sar: OscalAssessmentResults,
+) -> None:
+    """A type error must name the field, not only the rejected value."""
+    assembled_sar.metadata.title = 5
+    evidence = tmp_path / "evidence"
+    with pytest.raises(
+        SchemaValidationError,
+        match=r"assessment-results\.metadata\.title: 5 is not of type 'string'",
+    ):
+        write(assembled_sar, evidence)
+    assert not evidence.exists()
+
+
 def test_importing_writer_does_not_load_jsonschema() -> None:
     """Import-time invariant for ``oscal_pipeline`` and ``oscal_pipeline.writer``."""
     completed = subprocess.run(
