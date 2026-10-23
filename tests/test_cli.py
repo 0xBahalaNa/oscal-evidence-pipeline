@@ -182,7 +182,7 @@ def test_main_exits_1_and_writes_nothing_when_schema_validation_fails(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with patch(
-        "oscal_pipeline.cli.validate_against_vendored_schema",
+        "oscal_pipeline.schemas.validate.validate_against_vendored_schema",
         side_effect=SchemaValidationError("schema fail"),
     ):
         with pytest.raises(SystemExit) as exc_info:

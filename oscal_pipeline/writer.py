@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -50,15 +51,24 @@ def _build_output_path(output_dir: Path, timestamp: datetime) -> Path:
 def write(sar: OscalAssessmentResults, output_dir: Path) -> Path:
     """Write ``sar`` to a timestamped JSON file under ``output_dir``.
 
-    Creates ``output_dir`` when missing. Refuses to overwrite an existing
-    file at the computed path (AU-9 — protection of audit information).
-    Returns the path of the written evidence file.
+    Validates the canonical document before creating ``output_dir`` or
+    writing a file. Refuses to overwrite an existing file at the computed
+    path (AU-9). Returns the path of the written evidence file.
+
+    Raises:
+        SchemaValidationError: if the canonical document fails the
+            vendored NIST OSCAL JSON Schema.
+        FileExistsError: if the computed evidence path already exists.
     """
+    payload = serialize_sar(sar)
+    from oscal_pipeline.schemas.validate import validate_against_vendored_schema
+
+    validate_against_vendored_schema(json.loads(payload))
     output_dir.mkdir(parents=True, exist_ok=True)
     final_path = _build_output_path(output_dir, _timestamp_from_sar(sar))
     if final_path.exists():
         raise FileExistsError(
             f"refusing to overwrite existing SAR evidence file: {final_path}"
         )
-    _atomic_write_bytes(final_path, serialize_sar(sar))
+    _atomic_write_bytes(final_path, payload)
     return final_path

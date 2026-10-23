@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -17,6 +19,7 @@ from oscal_pipeline.assembler import (
     assemble,
     serialize_sar,
 )
+from oscal_pipeline.schemas.validate import SchemaValidationError
 from oscal_pipeline.writer import write
 
 _FIXTURE = Path(__file__).parent / "fixtures" / "secret_scanner_mixed.json"
@@ -134,3 +137,36 @@ def test_write_returns_resolved_path(
 ) -> None:
     output_path = write(assembled_sar, tmp_path)
     assert output_path == tmp_path / "assessment-results-2026-06-05-120000.json"
+
+
+def test_write_rejects_nonconformant_sar_before_creating_output_dir(
+    tmp_path: Path,
+    assembled_sar: OscalAssessmentResults,
+) -> None:
+    """Direct library ``assemble()`` + ``write()`` of a nonconformant SAR."""
+    assembled_sar.metadata.oscal_version = None
+    evidence = tmp_path / "evidence"
+    with pytest.raises(SchemaValidationError, match="oscal-version"):
+        write(assembled_sar, evidence)
+    assert not evidence.exists()
+    assert list(tmp_path.rglob("assessment-results-*.json")) == []
+
+
+def test_importing_writer_does_not_load_jsonschema() -> None:
+    """Import-time invariant for ``oscal_pipeline`` and ``oscal_pipeline.writer``."""
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; "
+                "import oscal_pipeline; "
+                "import oscal_pipeline.writer; "
+                "raise SystemExit(0 if 'jsonschema' not in sys.modules else 1)"
+            ),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr

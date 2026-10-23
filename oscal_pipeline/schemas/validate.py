@@ -1,8 +1,8 @@
 """Published NIST OSCAL JSON Schema validation (Layer 3).
 
-Reusable validator lifted from the CI gate so the CLI emit boundary can enforce
-schema conformance on every operator-emitted SAR without pulling ``jsonschema``
-into the ``import oscal_pipeline`` path. See ARCHITECTURE §11.
+``writer.write`` lazy-imports this module and runs it on the bytes about to
+be emitted. This module is not on the ``import oscal_pipeline`` path. See
+ARCHITECTURE §11.
 """
 
 from __future__ import annotations

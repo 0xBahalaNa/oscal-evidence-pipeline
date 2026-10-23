@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import getpass
-import json
 import logging
 import sys
 from collections.abc import Sequence
@@ -18,9 +17,9 @@ from typing import TYPE_CHECKING
 
 import oscal_pipeline
 from oscal_pipeline.adapters import AdapterMatchError, MultipleAdaptersMatch
-from oscal_pipeline.assembler import RunMetadata, SarValidationError, assemble, serialize_sar
+from oscal_pipeline.assembler import RunMetadata, SarValidationError, assemble
 from oscal_pipeline.ingest import ingest
-from oscal_pipeline.schemas.validate import SchemaValidationError, validate_against_vendored_schema
+from oscal_pipeline.schemas.validate import SchemaValidationError
 from oscal_pipeline.writer import write
 
 if TYPE_CHECKING:
@@ -132,7 +131,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _run_pipeline(input_dir: Path, output_dir: Path, profile: str) -> Path:
-    """Execute ingest → transform → assemble → schema-validate → write."""
+    """Execute ingest → transform → assemble → write."""
     try:
         ingested = list(ingest(input_dir))
     except FileNotFoundError as exc:
@@ -174,8 +173,6 @@ def _run_pipeline(input_dir: Path, output_dir: Path, profile: str) -> Path:
     )
 
     sar = assemble(observations, findings, run_metadata)
-    sar_doc = json.loads(serialize_sar(sar))
-    validate_against_vendored_schema(sar_doc)
     output_path = write(sar, output_dir)
     logger.info("wrote SAR evidence to %s", output_path)
     return output_path
