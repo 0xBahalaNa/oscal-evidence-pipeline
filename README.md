@@ -160,7 +160,7 @@ The script is idempotent. Re-running re-asserts the same configured state. That 
 
 ```bash
 oscal-pipeline run \
-  --input-dir ./audit-outputs/ \
+  --input-dir examples/ \
   --output ./evidence/ \
   --profile fedramp-high
 ```
